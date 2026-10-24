@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coffee &amp; Cravings — “Indulge in Creamy Perfection”</title>
+  <meta name="description" content="Coffee &amp; Cravings — Crafted with love, served with passion. Indulge in artisan coffee, creamy Alfredo pasta, gourmet burgers and QR table ordering in Patna." />
+  <meta name="theme-color" content="#fafafa" />
+
+  <!-- Favicon / Apple Touch Icons from Coffee & Cravings -->
+  <link rel="icon" type="image/png" sizes="180x180" href="https://img1.wsimg.com/isteam/ip/97d5fc10-c530-4d76-9943-c97aa772d128/blob-c58109d.png/:/rs=w:180,h:180,m" />
+  <link rel="apple-touch-icon" sizes="180x180" href="https://img1.wsimg.com/isteam/ip/97d5fc10-c530-4d76-9943-c97aa772d128/blob-c58109d.png/:/rs=w:180,h:180,m" />
+
+  <!-- Google Fonts matching GoDaddy site exactly: Playfair Display, Lora, Cinzel, Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600;1,700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- QRCode.js for generating Table QR codes and dynamic payment UPI QR codes -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="x-fonts-playfair-display x-fonts-lora x-fonts-cinzel">
+
+  <!-- Top Announcement / Barista Quick Switcher -->
+  <aside class="top-announcement-bar" id="announcement-bar">
+    <div class="announcement-content">
+      <span>✨ Welcome to Coffee &amp; Cravings — Patna's cozy artisan cafe &amp; kitchen</span>
+      <div class="announcement-actions">
+        <span class="table-pill" id="current-table-pill" onclick="openTablePickerModal()">
+          <span class="dot"></span> <span id="table-pill-text">Table: Walk-in / Takeaway</span>
+          <span class="change-tag">Change</span>
+        </span>
+        <button class="top-barista-btn" onclick="navigateTo('barista-kds')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+          Barista KDS Portal
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main GoDaddy Style Header -->
+  <header class="godaddy-header" id="main-header">
+    <div class="header-main-row">
+      <!-- Left: Contact Email -->
+      <div class="header-left">
+        <a href="mailto:founder@coffeeandcravings.in" class="header-email">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          founder@coffeeandcravings.in
+        </a>
+      </div>
+
+      <!-- Center: Brand Logo / Title -->
+      <div class="header-center">
+        <a href="#home" class="brand-title" onclick="navigateTo('home'); return false;">
+          COFFEE &amp; CRAVINGS
+        </a>
+      </div>
+
+      <!-- Right: Search, Cart with badge, Account & Mobile Menu Toggle -->
+      <div class="header-right">
+        <!-- Search Trigger -->
+        <button class="icon-btn" onclick="openSearchModal()" title="Search Menu" aria-label="Search">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+
+        <!-- Cart Trigger -->
+        <button class="icon-btn cart-btn" onclick="toggleCartDrawer(true)" title="Shopping Cart" aria-label="Cart">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span class="cart-badge" id="cart-badge-count">0</span>
+        </button>
+
+        <!-- Account / Staff Trigger -->
+        <button class="icon-btn" onclick="openAccountModal()" title="Account &amp; Info" aria-label="Account">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </button>
+
+        <!-- Mobile Hamburger -->
+        <button class="hamburger-btn" id="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Centered GoDaddy Sub-Navigation Menu -->
+    <nav class="sub-nav-menu" id="sub-nav">
+      <ul class="nav-list">
+        <li><a href="#home" class="nav-item active" data-nav="home" onclick="navigateTo('home'); return false;">HOME</a></li>
+        <li><a href="#order" class="nav-item" data-nav="order" onclick="navigateTo('order'); return false;">ORDER</a></li>
+        <li><a href="#story" class="nav-item" data-nav="story" onclick="navigateTo('story'); return false;">OUR STORY</a></li>
+        <li><a href="#gallery" class="nav-item" data-nav="gallery" onclick="navigateTo('gallery'); return false;">GALLERY</a></li>
+        <li><a href="#contact" class="nav-item" data-nav="contact" onclick="navigateTo('contact'); return false;">CONTACT</a></li>
+        <li><a href="#qr-tables" class="nav-item highlight-nav" data-nav="qr-tables" onclick="navigateTo('qr-tables'); return false;">TABLE QR CODES</a></li>
+        <li><a href="#barista-kds" class="nav-item kds-nav" data-nav="barista-kds" onclick="navigateTo('barista-kds'); return false;">BARISTA PORTAL <span class="live-pulse"></span></a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Mobile Drawer Menu -->
+  <div class="mobile-drawer" id="mobile-drawer">
+    <div class="drawer-header">
+      <span class="brand-title-small">COFFEE &amp; CRAVINGS</span>
+      <button class="close-btn" onclick="toggleMobileMenu(false)">&times;</button>
+    </div>
+    <ul class="mobile-nav-links">
+      <li><a href="#home" onclick="navigateTo('home'); toggleMobileMenu(false); return false;">Home</a></li>
+      <li><a href="#order" onclick="navigateTo('order'); toggleMobileMenu(false); return false;">Order Online</a></li>
+      <li><a href="#story" onclick="navigateTo('story'); toggleMobileMenu(false); return false;">Our Story</a></li>
+      <li><a href="#gallery" onclick="navigateTo('gallery'); toggleMobileMenu(false); return false;">Delightful Moments</a></li>
+      <li><a href="#contact" onclick="navigateTo('contact'); toggleMobileMenu(false); return false;">Contact &amp; Hours</a></li>
+      <li class="divider"></li>
+      <li><a href="#qr-tables" class="text-gold" onclick="navigateTo('qr-tables'); toggleMobileMenu(false); return false;">📱 Table QR Generator</a></li>
+      <li><a href="#barista-kds" class="text-kds" onclick="navigateTo('barista-kds'); toggleMobileMenu(false); return false;">☕ Barista KDS Kitchen</a></li>
+    </ul>
+    <div class="mobile-drawer-footer">
+      <p class="phone-link"><a href="tel:6205677925">📞 620-567-7925</a></p>
+      <p class="email-link"><a href="mailto:founder@coffeeandcravings.in">✉️ founder@coffeeandcravings.in</a></p>
+      <p class="address-text">H4RM+WXF, Mithapur Farm Area, Patna, Bihar 800001</p>
+    </div>
+  </div>
+  <div class="drawer-overlay" id="drawer-overlay" onclick="toggleMobileMenu(false)"></div>
+
+  <!-- Table Context Header Alert (Shown when ordering on a table) -->
+  <div class="table-active-banner" id="table-active-banner" style="display:none;">
+    <div class="table-banner-content">
+      <span class="table-badge-large" id="table-banner-badge">TABLE 04</span>
+      <span class="table-banner-msg">You are ordering for your table. Sit back — our barista will deliver straight to your seat!</span>
+      <button class="btn-text-light" onclick="openTablePickerModal()">Change Table</button>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER FOR VIEWS -->
+  <main id="app-view-container">
+    <!-- Dynamic page views injected here: Home, Order, QR Generator, Barista KDS, Story, Gallery, Contact -->
+  </main>
+
+  <!-- GODADDY SITE FOOTER -->
+  <footer class="godaddy-footer">
+    <div class="footer-container">
+      <div class="footer-social-row">
+        <h4 class="footer-social-title">Social</h4>
+        <div class="social-links">
+          <a href="https://www.instagram.com/coffeeandcravingspatna/" target="_blank" rel="noopener noreferrer" class="social-link-item" aria-label="Instagram">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+            <span>@coffeeandcravingspatna</span>
+          </a>
+          <a href="https://maps.app.goo.gl/7kHLJcCmuuUkmiSE8" target="_blank" rel="noopener noreferrer" class="social-link-item" aria-label="Google Maps Location">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>Patna, Bihar</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="footer-bottom-row">
+        <p class="copyright-text">Copyright &copy; 2024 Coffee &amp; Cravings - All Rights Reserved.</p>
+        <div class="footer-policy-links">
+          <a href="#privacy" onclick="openPolicyModal('privacy'); return false;">Privacy Policy</a>
+          <span class="sep">&bull;</span>
+          <a href="#terms" onclick="openPolicyModal('terms'); return false;">Terms and Conditions</a>
+          <span class="sep">&bull;</span>
+          <a href="#qr-tables" onclick="navigateTo('qr-tables'); return false;">Staff QR Generator</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- SLIDE-OVER CART DRAWER -->
+  <div class="cart-slide-drawer" id="cart-drawer">
+    <div class="cart-drawer-header">
+      <div class="cart-title-row">
+        <h3>Your Order</h3>
+        <span class="cart-items-count" id="cart-items-count-text">0 items</span>
+      </div>
+      <button class="close-cart-btn" onclick="toggleCartDrawer(false)">&times;</button>
+    </div>
+
+    <!-- Table Assignment in Cart -->
+    <div class="cart-table-selector">
+      <span class="label">Dining Table:</span>
+      <select id="cart-table-select" onchange="onCartTableChange(this.value)">
+        <option value="0">Takeaway / Counter</option>
+        <option value="1">Table 01</option>
+        <option value="2">Table 02</option>
+        <option value="3">Table 03</option>
+        <option value="4">Table 04</option>
+        <option value="5">Table 05</option>
+        <option value="6">Table 06</option>
+        <option value="7">Table 07</option>
+        <option value="8">Table 08</option>
+        <option value="9">Table 09</option>
+        <option value="10">Table 10</option>
+        <option value="11">Table 11</option>
+        <option value="12">Table 12</option>
+      </select>
+    </div>
+
+    <div class="cart-drawer-body" id="cart-items-container">
+      <!-- Items dynamically populated -->
+      <div class="empty-cart-state" id="empty-cart-state">
+        <div class="empty-cart-icon">☕</div>
+        <p class="empty-cart-title">Your cart is empty</p>
+        <p class="empty-cart-sub">Explore our artisan coffees, creamy pastas, and fresh cravings!</p>
+        <button class="btn-godaddy-dark mt-2" onclick="toggleCartDrawer(false); navigateTo('order');">Browse Menu</button>
+      </div>
+    </div>
+
+    <div class="cart-drawer-footer" id="cart-drawer-footer" style="display:none;">
+      <!-- Special Instruction Input -->
+      <div class="cart-instruction-box">
+        <label for="order-special-notes">Special Kitchen Instructions:</label>
+        <input type="text" id="order-special-notes" placeholder="e.g. Less sugar, extra crispy fries, no onion" />
+      </div>
+
+      <div class="cart-totals">
+        <div class="total-line">
+          <span>Subtotal</span>
+          <span id="cart-subtotal">₹0.00</span>
+        </div>
+        <div class="total-line">
+          <span>GST (5%)</span>
+          <span id="cart-tax">₹0.00</span>
+        </div>
+        <div class="total-line grand-total">
+          <span>Total Amount</span>
+          <span id="cart-grand-total">₹0.00</span>
+        </div>
+      </div>
+
+      <button class="btn-godaddy-dark full-width checkout-btn" onclick="openCheckoutModal()">
+        Proceed to Checkout
+      </button>
+    </div>
+  </div>
+  <div class="cart-overlay" id="cart-overlay" onclick="toggleCartDrawer(false)"></div>
+
+  <!-- CHECKOUT & DUAL PAYMENT MODAL -->
+  <div class="modal-backdrop" id="checkout-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="checkout-modal-title">Checkout &amp; Payment</h3>
+        <button class="modal-close" onclick="closeCheckoutModal()">&times;</button>
+      </div>
+
+      <div class="modal-body" id="checkout-modal-body">
+        <!-- Step 1: Review Table & Total -->
+        <div class="checkout-table-callout">
+          <div class="callout-left">
+            <span class="tag">ORDER TYPE</span>
+            <h4 id="checkout-table-heading">Table 04</h4>
+          </div>
+          <div class="callout-right">
+            <span class="tag">TOTAL DUE</span>
+            <h4 id="checkout-total-heading">₹0.00</h4>
+          </div>
+        </div>
+
+        <!-- Step 2: Choose Payment Method -->
+        <div class="payment-method-selector">
+          <label class="section-label">Select How You Wish to Pay:</label>
+          <div class="payment-cards">
+            <!-- Digital Payment Card -->
+            <div class="payment-card selected" id="pay-card-digital" onclick="selectPaymentMethod('digital')">
+              <div class="radio-indicator"></div>
+              <div class="card-info">
+                <strong>Pay Online via UPI / QR</strong>
+                <p>Instant UPI scan (GPay, PhonePe, Paytm, Any UPI app)</p>
+              </div>
+              <span class="badge-rec">Instant</span>
+            </div>
+
+            <!-- Pay at Counter Card -->
+            <div class="payment-card" id="pay-card-counter" onclick="selectPaymentMethod('counter')">
+              <div class="radio-indicator"></div>
+              <div class="card-info">
+                <strong>Pay at Counter (Cash)</strong>
+                <p>Place order now &amp; pay barista directly at the counter</p>
+              </div>
+              <span class="badge-counter">Counter</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Payment Sub-Views -->
+        <!-- Subview A: Digital UPI QR Code -->
+        <div class="payment-subview" id="digital-subview">
+          <div class="upi-box">
+            <p class="upi-title">Scan QR code using any UPI App</p>
+            <div id="dynamic-upi-qrcode" class="qrcode-wrapper"></div>
+            <p class="upi-id-label">UPI ID: <strong>founder@coffeeandcravings.in</strong></p>
+            <p class="upi-help">Once scanned and approved, click below to confirm your table order.</p>
+          </div>
+        </div>
+
+        <!-- Subview B: Counter Cash Notice -->
+        <div class="payment-subview" id="counter-subview" style="display:none;">
+          <div class="counter-notice-box">
+            <div class="notice-icon">💵</div>
+            <div class="notice-text">
+              <h4>Pay with Cash at Counter</h4>
+              <p>Your order will be instantly queued in the kitchen for <strong>Table <span class="counter-table-num">04</span></strong>.</p>
+              <p class="sub">Please visit the barista counter to settle your bill whenever convenient.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Name / Phone (Optional for bill/loyalty) -->
+        <div class="form-row-two mt-2">
+          <div class="form-field">
+            <label>Customer Name (Optional)</label>
+            <input type="text" id="cust-name-input" placeholder="e.g. Rahul Sharma" />
+          </div>
+          <div class="form-field">
+            <label>Phone Number (Optional)</label>
+            <input type="tel" id="cust-phone-input" placeholder="e.g. 9876543210" />
+          </div>
+        </div>
+
+        <button class="btn-godaddy-dark full-width place-order-btn mt-3" id="confirm-order-btn" onclick="submitFinalOrder()">
+          Confirm &amp; Place Order
+        </button>
+      </div>
+
+      <!-- SUCCESS / TICKET VIEW (Replaces checkout body upon placement) -->
+      <div class="modal-body success-state" id="order-success-state" style="display:none;">
+        <div class="success-checkmark">✓</div>
+        <h3 class="success-title">Order Received!</h3>
+        <p class="success-subtitle">The barista has received your table ticket and is crafting your cravings.</p>
+
+        <div class="order-receipt-card">
+          <div class="receipt-header">
+            <div>
+              <span class="receipt-id-tag">ORDER ID</span>
+              <h4 id="success-receipt-id">#CC-8104</h4>
+            </div>
+            <div class="text-right">
+              <span class="receipt-table-tag">LOCATION</span>
+              <h4 id="success-receipt-table">Table 04</h4>
+            </div>
+          </div>
+          <div class="receipt-payment-status" id="success-receipt-payment">
+            <!-- E.g. PAID (Digital UPI) or UNPAID (Pay at Counter) -->
+          </div>
+          <div class="receipt-items-list" id="success-receipt-items"></div>
+          <div class="receipt-total-row">
+            <span>Total:</span>
+            <strong id="success-receipt-total">₹0.00</strong>
+          </div>
+        </div>
+
+        <!-- Live Order Status Tracker -->
+        <div class="live-status-tracker">
+          <div class="tracker-step active" id="track-step-1">
+            <div class="step-circle">1</div>
+            <span>Order Placed</span>
+          </div>
+          <div class="tracker-line" id="track-line-1"></div>
+          <div class="tracker-step" id="track-step-2">
+            <div class="step-circle">2</div>
+            <span>Preparing</span>
+          </div>
+          <div class="tracker-line" id="track-line-2"></div>
+          <div class="tracker-step" id="track-step-3">
+            <div class="step-circle">3</div>
+            <span>Ready / Served</span>
+          </div>
+        </div>
+
+        <div class="success-actions mt-3">
+          <button class="btn-godaddy-dark full-width" onclick="closeCheckoutModal(); navigateTo('home');">Back to Cafe Home</button>
+          <button class="btn-godaddy-outline full-width mt-1" onclick="closeCheckoutModal(); navigateTo('barista-kds');">View on Barista Kitchen Screen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE PICKER MODAL -->
+  <div class="modal-backdrop" id="table-picker-modal">
+    <div class="modal-card small-modal">
+      <div class="modal-header">
+        <h3>Select Your Dining Table</h3>
+        <button class="modal-close" onclick="closeTablePickerModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Are you seated at a table? Select your table number so the barista can deliver directly to you:</p>
+        <div class="table-grid-selector">
+          <button class="table-select-btn" onclick="setSeatedTable(0)">Takeaway / Counter</button>
+          <button class="table-select-btn" onclick="setSeatedTable(1)">Table 01</button>
+          <button class="table-select-btn" onclick="setSeatedTable(2)">Table 02</button>
+          <button class="table-select-btn" onclick="setSeatedTable(3)">Table 03</button>
+          <button class="table-select-btn" onclick="setSeatedTable(4)">Table 04</button>
+          <button class="table-select-btn" onclick="setSeatedTable(5)">Table 05</button>
+          <button class="table-select-btn" onclick="setSeatedTable(6)">Table 06</button>
+          <button class="table-select-btn" onclick="setSeatedTable(7)">Table 07</button>
+          <button class="table-select-btn" onclick="setSeatedTable(8)">Table 08</button>
+          <button class="table-select-btn" onclick="setSeatedTable(9)">Table 09</button>
+          <button class="table-select-btn" onclick="setSeatedTable(10)">Table 10</button>
+          <button class="table-select-btn" onclick="setSeatedTable(11)">Table 11</button>
+          <button class="table-select-btn" onclick="setSeatedTable(12)">Table 12</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH MODAL -->
+  <div class="modal-backdrop" id="search-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Search Menu</h3>
+        <button class="modal-close" onclick="closeSearchModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="search-input-wrapper">
+          <input type="text" id="menu-search-input" placeholder="Search coffee, burger, pasta, frappe..." oninput="handleMenuSearch(this.value)" autofocus />
+        </div>
+        <div class="search-results-list" id="search-results-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POLICY MODAL (Privacy & Terms) -->
+  <div class="modal-backdrop" id="policy-modal">
+    <div class="modal-card large-modal">
+      <div class="modal-header">
+        <h3 id="policy-title">Privacy Policy</h3>
+        <button class="modal-close" onclick="closePolicyModal()">&times;</button>
+      </div>
+      <div class="modal-body policy-content" id="policy-body"></div>
+    </div>
+  </div>
+
+  <!-- COOKIE BANNER (Matches GoDaddy site) -->
+  <div class="godaddy-cookie-banner" id="cookie-banner">
+    <div class="cookie-banner-inner">
+      <h4 class="cookie-title">This website uses cookies.</h4>
+      <p class="cookie-text">
+        We use cookies to analyze website traffic and optimize your website experience. By accepting our use of cookies, your data will be aggregated with all other user data.
+      </p>
+      <button class="cookie-accept-btn" onclick="acceptCookies()">ACCEPT</button>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- APP JAVASCRIPT -->
+  <script src="app.js"></script>
+</body>
+</html>
