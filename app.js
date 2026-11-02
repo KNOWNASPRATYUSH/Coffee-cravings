@@ -1,234 +1,21 @@
 /**
  * Coffee & Cravings — Application Logic
- * Replicating GoDaddy site 1:1 + QR Table Ordering + Live Barista KDS
+ * Customer site: menu, cart, QR table ordering
  */
 
 // =============================================================================
 // 1. MENU CATALOG (Exact Products & Prices from Coffee & Cravings GoDaddy Store)
 // =============================================================================
-const MENU_ITEMS = [
-  // COFFEE (HOT & ICED)
-  {
-    id: 'cappuccino',
-    name: 'Cappuccino',
-    category: 'coffee',
-    categoryName: 'Coffee (Hot & Iced)',
-    price: 129,
-    description: 'Dark, rich espresso lying under a smoothed and stretched layer of thick milk foam.',
-    image: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=700&q=80',
-    badge: 'Popular',
-    featured: true
-  },
-  {
-    id: 'americano',
-    name: 'Americano',
-    category: 'coffee',
-    categoryName: 'Coffee (Hot & Iced)',
-    price: 129,
-    description: 'Espresso shots topped with hot water create a light layer of crema culminating in this wonderfully rich cup.',
-    image: 'https://images.unsplash.com/photo-1551030173-122aabc4489c?auto=format&fit=crop&w=700&q=80',
-    badge: 'Classic',
-    featured: true
-  },
-  {
-    id: 'caffe-mocha',
-    name: 'Caffé Mocha',
-    category: 'coffee',
-    categoryName: 'Coffee (Hot & Iced)',
-    price: 159,
-    description: 'Comforting mocha sauce and espresso meet steamed milk with delicate foam.',
-    image: 'https://images.unsplash.com/photo-1578314675249-a6910f80cc4e?auto=format&fit=crop&w=700&q=80',
-    badge: 'Bestseller',
-    featured: true
-  },
-  {
-    id: 'caffe-latte',
-    name: 'Caffé Latte',
-    category: 'coffee',
-    categoryName: 'Coffee (Hot & Iced)',
-    price: 129,
-    description: 'Rich, full-bodied espresso in steamed milk, lightly topped with velvety foam.',
-    image: 'https://images.unsplash.com/photo-1561047029-3000c68339ca?auto=format&fit=crop&w=700&q=80',
-    badge: '',
-    featured: true
-  },
-  {
-    id: 'latte-macchiato',
-    name: 'Latte Macchiato',
-    category: 'coffee',
-    categoryName: 'Coffee (Hot & Iced)',
-    price: 110,
-    description: 'Steamed milk with marked espresso shots, creating layers of flavor.',
-    image: 'https://images.unsplash.com/photo-1534778101976-62847782c213?auto=format&fit=crop&w=700&q=80',
-    badge: 'Value',
-    featured: true
-  },
-  {
-    id: 'iced-latte',
-    name: 'Iced Latte',
-    category: 'coffee',
-    categoryName: 'Coffee (Hot & Iced)',
-    price: 129,
-    description: 'Chilled espresso combined with milk and poured over ice.',
-    image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=700&q=80',
-    badge: 'Chilled',
-    featured: false
-  },
-  {
-    id: 'irish-latte',
-    name: 'Irish Latte',
-    category: 'coffee',
-    categoryName: 'Coffee (Hot & Iced)',
-    price: 129,
-    description: 'Aromatic espresso infused with non-alcoholic Irish cream notes and warm velvety milk.',
-    image: 'https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&w=700&q=80',
-    badge: 'Specialty',
-    featured: false
-  },
-
-  // FRAPPES & COOLERS
-  {
-    id: 'hazelnut-frappe',
-    name: 'Hazelnut Frappe',
-    category: 'frappes',
-    categoryName: 'Frappes & Coolers',
-    price: 159,
-    description: 'Blended roasted hazelnut syrup, chilled espresso, creamy milk and ice topped with whipped delight.',
-    image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=700&q=80',
-    badge: 'Signature',
-    featured: true
-  },
-  {
-    id: 'caramel-frappe',
-    name: 'Caramel Frappe',
-    category: 'frappes',
-    categoryName: 'Frappes & Coolers',
-    price: 139,
-    description: 'Buttery caramel syrup blended with coffee, milk and ice with golden drizzle.',
-    image: 'https://images.unsplash.com/photo-1589396575653-c09c794ff6a6?auto=format&fit=crop&w=700&q=80',
-    badge: 'Popular',
-    featured: false
-  },
-  {
-    id: 'french-vanilla-frappe',
-    name: 'French Vanilla Frappe',
-    category: 'frappes',
-    categoryName: 'Frappes & Coolers',
-    price: 139,
-    description: 'Fragrant French vanilla blended cold with creamy milk and coffee.',
-    image: 'https://images.unsplash.com/photo-1558857563-b371033873b8?auto=format&fit=crop&w=700&q=80',
-    badge: '',
-    featured: false
-  },
-  {
-    id: 'choco-bin-laden',
-    name: 'Choco Bin Laden',
-    category: 'frappes',
-    categoryName: 'Frappes & Coolers',
-    price: 179,
-    description: 'Our explosive chocolate explosion frappe packed with brownies, dark chocolate chips, and thick fudge sauce.',
-    image: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=700&q=80',
-    badge: 'Cafe Legend',
-    featured: true
-  },
-  {
-    id: 'spicy-lemonade',
-    name: 'Spicy Lemonade',
-    category: 'frappes',
-    categoryName: 'Frappes & Coolers',
-    price: 99,
-    description: 'Tangy fresh squeezed lemon cooler with a hint of roasted cumin, mint, and desi spices.',
-    image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=700&q=80',
-    badge: 'Refreshing',
-    featured: false
-  },
-
-  // PASTAS & SNACKS
-  {
-    id: 'creamy-alfredo-pasta',
-    name: 'Creamy Alfredo Pasta',
-    category: 'pastas',
-    categoryName: 'Pastas & Snacks',
-    price: 219,
-    description: 'Tender penne pasta tossed in our chef’s signature velvety parmesan cheese cream sauce with black olives and herbs.',
-    image: 'https://i.vimeocdn.com/video/1972773852-c462373ce16cfc72992424520d893639a8402099a84c3667279fddacc986d86f-d_1920x1080?r=pad',
-    badge: 'House Special',
-    featured: true
-  },
-  {
-    id: 'paneer-makhani',
-    name: 'Paneer Makhani',
-    category: 'pastas',
-    categoryName: 'Pastas & Snacks',
-    price: 269,
-    description: 'Succulent cubes of cottage cheese prepared in a rich, velvety butter-tomato gravy with Indian spices.',
-    image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=700&q=80',
-    badge: 'Gourmet',
-    featured: false
-  },
-  {
-    id: 'club-sandwich',
-    name: 'Club Sandwich',
-    category: 'pastas',
-    categoryName: 'Pastas & Snacks',
-    price: 149,
-    description: 'Triple-decker toasted bread filled with fresh crisp garden greens, cheese slice, and creamy herb dressing.',
-    image: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=700&q=80',
-    badge: '',
-    featured: false
-  },
-
-  // BURGERS & FRIES
-  {
-    id: 'classic-veg-burger',
-    name: 'Classic Veg Burger',
-    category: 'burgers',
-    categoryName: 'Burgers & Fries',
-    price: 69,
-    description: 'Golden spiced potato and vegetable patty in a toasted sesame bun with lettuce and mayo.',
-    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=700&q=80',
-    badge: 'Bestseller',
-    featured: false
-  },
-  {
-    id: 'patted-paneer-burger',
-    name: 'Patted Paneer Burger',
-    category: 'burgers',
-    categoryName: 'Burgers & Fries',
-    price: 119,
-    description: 'Crispy seasoned paneer patty topped with melted cheddar, crunchy onions, and zesty secret sauce.',
-    image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=700&q=80',
-    badge: 'Chef Choice',
-    featured: true
-  },
-  {
-    id: 'salted-french-fries',
-    name: 'Salted French Fries',
-    category: 'burgers',
-    categoryName: 'Burgers & Fries',
-    price: 59,
-    description: 'Golden potato fries fried to perfection and dusted with sea salt.',
-    image: 'https://images.unsplash.com/photo-1576107232684-1279f3908594?auto=format&fit=crop&w=700&q=80',
-    badge: '',
-    featured: false
-  },
-  {
-    id: 'peri-peri-fries',
-    name: 'Peri Peri Fries',
-    category: 'burgers',
-    categoryName: 'Burgers & Fries',
-    price: 79,
-    description: 'Crispy crinkle-cut fries tossed vigorously in our bold and spicy peri-peri dust.',
-    image: 'https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?auto=format&fit=crop&w=700&q=80',
-    badge: 'Spicy',
-    featured: false
-  }
-];
+// MENU_ITEMS now lives in menu-data.js (loaded before this file)
 
 // =============================================================================
 // 2. STATE MANAGEMENT & LOCAL STORAGE
 // =============================================================================
 let currentView = 'home';
+let currentTableSig = '';
+let orderSubmitting = false;
+let gatewayOn = false;
+let orderKey = null;
 let currentTable = 0; // 0 = Walk-in/takeaway, 1-12 = Table number
 let cart = []; // [{ id, qty, note }]
 let currentPaymentMethod = 'digital'; // 'digital' (UPI) or 'counter' (Cash)
@@ -236,27 +23,25 @@ let orderSearchFilter = '';
 let orderCategoryFilter = 'all';
 let orderSortFilter = 'popular';
 let selectedQrPlacardTable = 1;
-let kdsFilter = 'all';
 
 // Load stored cart & table from localStorage
 function initStorage() {
   try {
     const savedCart = localStorage.getItem('cc_cart');
     if (savedCart) cart = JSON.parse(savedCart);
-
-    const savedTable = localStorage.getItem('cc_table');
-    if (savedTable) currentTable = parseInt(savedTable, 10) || 0;
-
-    // Check URL parameters for table: e.g. ?table=4
-    const urlParams = new URLSearchParams(window.location.search);
-    const tableParam = urlParams.get('table');
-    if (tableParam) {
-      currentTable = parseInt(tableParam, 10) || 0;
-      localStorage.setItem('cc_table', currentTable);
+  } catch (e) { cart = []; }
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const t = parseInt(p.get('table'), 10);
+    const sig = p.get('sig');
+    if (t >= 1 && t <= 12 && sig) {
+      sessionStorage.setItem('cc_table', String(t));
+      sessionStorage.setItem('cc_table_sig', sig);
+      history.replaceState(null, '', window.location.pathname + window.location.hash);
     }
-  } catch (e) {
-    console.error('Storage error', e);
-  }
+    currentTable = parseInt(sessionStorage.getItem('cc_table'), 10) || 0;
+    currentTableSig = sessionStorage.getItem('cc_table_sig') || '';
+  } catch (e) {}
 }
 
 function saveCart() {
@@ -273,51 +58,6 @@ function saveTable(tableNum) {
     localStorage.setItem('cc_table', currentTable);
   } catch (e) {}
   updateTablePill();
-}
-
-// Initial orders seed for Barista KDS if none exists
-function initSampleOrders() {
-  if (!localStorage.getItem('cc_orders')) {
-    const initialOrders = [
-      {
-        id: 'CC-1021',
-        table: 2,
-        customerName: 'Aarav Patel',
-        phone: '9823411223',
-        paymentMethod: 'counter',
-        paymentStatus: 'UNPAID', // Barista must collect cash!
-        specialNotes: 'Extra hot coffee please',
-        items: [
-          { id: 'cappuccino', name: 'Cappuccino', qty: 2, price: 129 },
-          { id: 'salted-french-fries', name: 'Salted French Fries', qty: 1, price: 59 }
-        ],
-        subtotal: 317,
-        tax: 15.85,
-        total: 332.85,
-        status: 'new', // 'new' | 'preparing' | 'ready' | 'completed'
-        createdAt: new Date(Date.now() - 6 * 60000).toISOString()
-      },
-      {
-        id: 'CC-1020',
-        table: 4,
-        customerName: 'Priya Verma',
-        phone: '9934102948',
-        paymentMethod: 'digital',
-        paymentStatus: 'PAID',
-        specialNotes: 'Mild spice on pasta',
-        items: [
-          { id: 'creamy-alfredo-pasta', name: 'Creamy Alfredo Pasta', qty: 1, price: 219 },
-          { id: 'hazelnut-frappe', name: 'Hazelnut Frappe', qty: 1, price: 159 }
-        ],
-        subtotal: 378,
-        tax: 18.9,
-        total: 396.9,
-        status: 'preparing',
-        createdAt: new Date(Date.now() - 14 * 60000).toISOString()
-      }
-    ];
-    localStorage.setItem('cc_orders', JSON.stringify(initialOrders));
-  }
 }
 
 // =============================================================================
@@ -392,14 +132,6 @@ function navigateTo(viewName) {
     case 'contact':
       appContainer.innerHTML = renderContactPage();
       break;
-    case 'qr-tables':
-      appContainer.innerHTML = renderQrTablesPage();
-      generatePlacardQr(selectedQrPlacardTable);
-      break;
-    case 'barista-kds':
-      appContainer.innerHTML = renderBaristaKdsPage();
-      renderKdsOrders();
-      break;
     default:
       appContainer.innerHTML = renderHomePage();
   }
@@ -415,15 +147,6 @@ window.addEventListener('hashchange', () => {
   }
 });
 
-// Listen to storage events for real-time synchronization between Barista KDS and Customer orders!
-window.addEventListener('storage', (e) => {
-  if (e.key === 'cc_orders') {
-    if (currentView === 'barista-kds') {
-      renderKdsOrders();
-      playChimeSound();
-    }
-  }
-});
 
 // =============================================================================
 // 5. VIEW RENDERERS
@@ -875,366 +598,6 @@ function renderContactPage() {
   `;
 }
 
-// --- 5F: TABLE QR CODE GENERATOR & SIMULATOR ---
-function renderQrTablesPage() {
-  return `
-    <div class="qr-page-container">
-      <div class="section-header-center">
-        <span class="section-label-top">STAFF MANAGEMENT TOOL</span>
-        <h1 class="section-heading-serif">Table QR Code Generator</h1>
-        <p class="story-text" style="max-width: 600px; margin: 0 auto;">
-          Generate, test, and print tabletop QR placards for your tables. When a customer scans with their phone, it opens the menu directly tagged for that specific table!
-        </p>
-      </div>
-
-      <div class="qr-generator-card">
-        <!-- Controls -->
-        <div class="qr-controls-pane">
-          <div>
-            <h3 style="font-family: var(--font-display); font-size: 16px; margin-bottom: 8px;">1. Select Table Number:</h3>
-            <div class="qr-table-picker-grid">
-              ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => `
-                <button 
-                  class="qr-table-chip ${selectedQrPlacardTable === n ? 'selected' : ''}" 
-                  onclick="selectPlacardTable(${n})"
-                >
-                  Table ${n < 10 ? '0' + n : n}
-                </button>
-              `).join('')}
-            </div>
-          </div>
-
-          <div style="background:#f9fafb; padding:16px; border:1px solid #e5e7eb; border-radius:4px;">
-            <p style="font-size:13px; font-weight:600;">Target QR URL for Table ${selectedQrPlacardTable}:</p>
-            <code id="placard-target-url" style="display:block; font-size:11px; color:#4b5563; word-break:break-all; margin-top:4px;">
-              ${getTableTargetUrl(selectedQrPlacardTable)}
-            </code>
-          </div>
-
-          <div class="d-flex" style="display:flex; flex-direction:column; gap:10px;">
-            <button class="btn-godaddy-dark full-width" onclick="simulateTableScan(${selectedQrPlacardTable})">
-              📱 Test / Simulate Table ${selectedQrPlacardTable} Customer Visit
-            </button>
-            <button class="btn-godaddy-outline full-width" onclick="window.print()">
-              🖨️ Print This Placard for Table
-            </button>
-          </div>
-        </div>
-
-        <!-- Placard Stand Preview -->
-        <div class="placard-preview-wrapper">
-          <div class="printable-placard" id="printable-table-placard">
-            <span class="placard-brand">Coffee &amp; Cravings</span>
-            <span class="placard-tagline">“Crafted with love, served with passion.”</span>
-            
-            <div class="placard-qr-box" id="placard-qr-container"></div>
-
-            <div class="placard-table-number" id="placard-table-title">TABLE 0${selectedQrPlacardTable}</div>
-            <p class="placard-instructions">
-              Point your phone camera to scan, explore the menu, and order straight to this table!
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function getTableTargetUrl(tableNum) {
-  const base = window.location.href.split('?')[0].split('#')[0];
-  return `${base}?table=${tableNum}#order`;
-}
-
-function selectPlacardTable(tableNum) {
-  selectedQrPlacardTable = tableNum;
-  // Re-render QR
-  document.querySelectorAll('.qr-table-chip').forEach((btn, idx) => {
-    btn.classList.toggle('selected', idx + 1 === tableNum);
-  });
-  const title = document.getElementById('placard-table-title');
-  if (title) title.innerText = `TABLE ${tableNum < 10 ? '0' + tableNum : tableNum}`;
-  const urlEl = document.getElementById('placard-target-url');
-  if (urlEl) urlEl.innerText = getTableTargetUrl(tableNum);
-  generatePlacardQr(tableNum);
-}
-
-function generatePlacardQr(tableNum) {
-  const container = document.getElementById('placard-qr-container');
-  if (!container) return;
-  container.innerHTML = '';
-  const url = getTableTargetUrl(tableNum);
-  new QRCode(container, {
-    text: url,
-    width: 156,
-    height: 156,
-    colorDark: '#1a1a1a',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.H
-  });
-}
-
-function simulateTableScan(tableNum) {
-  saveTable(tableNum);
-  showToast(`Simulated scan: Seated at Table 0${tableNum}!`, 'success');
-  navigateTo('order');
-}
-
-// --- 5G: BARISTA LIVE KITCHEN DISPLAY SYSTEM (KDS) ---
-function renderBaristaKdsPage() {
-  return `
-    <div class="kds-container">
-      <div class="kds-header-bar">
-        <div class="kds-title-group">
-          <h2>
-            ☕ Barista Live Kitchen Display
-            <span class="kds-live-tag">LIVE FEED</span>
-          </h2>
-          <p class="story-text" style="font-size:14px; margin-top:4px;">
-            Real-time table orders, kitchen statuses, and payment collection tracking.
-          </p>
-        </div>
-
-        <div style="display:flex; gap:10px;">
-          <button class="btn-godaddy-outline" style="font-size:12px; padding:8px 16px;" onclick="openWalkinOrderModal()">
-            + Walk-in Order
-          </button>
-          <button class="btn-godaddy-dark" style="font-size:12px; padding:8px 16px;" onclick="renderKdsOrders(); playChimeSound();">
-            🔄 Refresh Queue
-          </button>
-        </div>
-      </div>
-
-      <!-- Stats Bar -->
-      <div class="kds-stats-row" id="kds-stats-row">
-        <!-- Rendered via JS -->
-      </div>
-
-      <!-- Filter Tabs -->
-      <div class="kds-filter-tabs">
-        <button class="kds-tab-btn ${kdsFilter === 'all' ? 'active' : ''}" onclick="setKdsFilter('all')">All Orders</button>
-        <button class="kds-tab-btn ${kdsFilter === 'new' ? 'active' : ''}" onclick="setKdsFilter('new')">Incoming / New</button>
-        <button class="kds-tab-btn ${kdsFilter === 'preparing' ? 'active' : ''}" onclick="setKdsFilter('preparing')">Preparing</button>
-        <button class="kds-tab-btn ${kdsFilter === 'ready' ? 'active' : ''}" onclick="setKdsFilter('ready')">Ready to Serve</button>
-        <button class="kds-tab-btn ${kdsFilter === 'completed' ? 'active' : ''}" onclick="setKdsFilter('completed')">Completed</button>
-      </div>
-
-      <!-- Orders Grid -->
-      <div class="kds-orders-grid" id="kds-orders-grid">
-        <!-- Injected via renderKdsOrders() -->
-      </div>
-    </div>
-  `;
-}
-
-function setKdsFilter(filterName) {
-  kdsFilter = filterName;
-  document.querySelectorAll('.kds-tab-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.innerText.toLowerCase().includes(filterName));
-  });
-  renderKdsOrders();
-}
-
-function getStoredOrders() {
-  try {
-    const raw = localStorage.getItem('cc_orders');
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    return [];
-  }
-}
-
-function saveStoredOrders(orders) {
-  try {
-    localStorage.setItem('cc_orders', JSON.stringify(orders));
-  } catch (e) {}
-}
-
-function renderKdsOrders() {
-  const grid = document.getElementById('kds-orders-grid');
-  const statsRow = document.getElementById('kds-stats-row');
-  if (!grid || !statsRow) return;
-
-  const allOrders = getStoredOrders();
-
-  // Calculate statistics
-  const activeCount = allOrders.filter(o => o.status !== 'completed').length;
-  const prepCount = allOrders.filter(o => o.status === 'preparing').length;
-  const unpaidCounterCount = allOrders.filter(o => o.paymentMethod === 'counter' && o.paymentStatus === 'UNPAID').length;
-  const totalSales = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-
-  statsRow.innerHTML = `
-    <div class="kds-stat-card">
-      <span class="kds-stat-title">Active Orders</span>
-      <span class="kds-stat-value">${activeCount}</span>
-    </div>
-    <div class="kds-stat-card">
-      <span class="kds-stat-title">Kitchen Preparing</span>
-      <span class="kds-stat-value highlight-amber">${prepCount}</span>
-    </div>
-    <div class="kds-stat-card">
-      <span class="kds-stat-title">Unpaid Counter Orders</span>
-      <span class="kds-stat-value ${unpaidCounterCount > 0 ? 'highlight-amber' : ''}">${unpaidCounterCount}</span>
-    </div>
-    <div class="kds-stat-card">
-      <span class="kds-stat-title">Today's Total Sales</span>
-      <span class="kds-stat-value highlight-green">₹${totalSales.toFixed(2)}</span>
-    </div>
-  `;
-
-  // Filter orders
-  let filtered = allOrders;
-  if (kdsFilter !== 'all') {
-    filtered = allOrders.filter(o => o.status === kdsFilter);
-  }
-
-  // Sort: newest first
-  filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  if (filtered.length === 0) {
-    grid.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; background:#fff; border:1px solid #e5e7eb;">
-        <p style="font-size: 20px; color: #666;">No orders found in this category.</p>
-        <p class="text-muted mt-1" style="font-size:14px;">Incoming orders will appear here automatically with a sound chime.</p>
-      </div>
-    `;
-    return;
-  }
-
-  grid.innerHTML = filtered.map(order => {
-    const isUnpaid = order.paymentMethod === 'counter' && order.paymentStatus === 'UNPAID';
-    const elapsedMinutes = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000);
-    const timeText = elapsedMinutes <= 1 ? 'Just now' : `${elapsedMinutes}m ago`;
-
-    return `
-      <div class="kds-order-card status-${order.status}">
-        <div class="kds-card-header">
-          <div>
-            <span class="kds-table-badge">
-              ${order.table > 0 ? `TABLE 0${order.table}` : 'TAKEAWAY / COUNTER'}
-            </span>
-            <div style="font-size:12px; margin-top:4px; font-weight:600;">
-              ${order.customerName ? order.customerName : 'Guest'} 
-              ${order.phone ? `(${order.phone})` : ''}
-            </div>
-          </div>
-          <div class="kds-order-meta">
-            <strong>${order.id}</strong>
-            <div>${timeText}</div>
-          </div>
-        </div>
-
-        <!-- Payment Status Badge -->
-        <div>
-          ${isUnpaid ? `
-            <span class="kds-payment-tag unpaid-counter">
-              ⚠️ COLLECT CASH: ₹${order.total.toFixed(2)}
-              <button class="btn-mark-paid-inline" onclick="markOrderPaid('${order.id}')">MARK PAID</button>
-            </span>
-          ` : `
-            <span class="kds-payment-tag paid-digital">
-              ✓ PAID (Digital UPI): ₹${order.total.toFixed(2)}
-            </span>
-          `}
-        </div>
-
-        <!-- Special Instructions from Table Customer -->
-        ${order.specialNotes ? `
-          <div class="kds-special-note-box">
-            <strong>📝 Customer Note:</strong> “${order.specialNotes}”
-          </div>
-        ` : ''}
-
-        <!-- Items Ordered -->
-        <div class="kds-items-list">
-          ${order.items.map(it => `
-            <div class="kds-item-row">
-              <div>
-                <span class="kds-item-qty">${it.qty}x</span>
-                <span>${it.name}</span>
-              </div>
-              <span style="font-size:13px; font-weight:600;">₹${(it.price * it.qty).toFixed(2)}</span>
-            </div>
-          `).join('')}
-        </div>
-
-        <!-- Status Actions -->
-        <div class="kds-actions-row">
-          ${order.status === 'new' ? `
-            <button class="kds-action-btn btn-prepare" onclick="updateOrderStatus('${order.id}', 'preparing')">
-              Start Preparing 👨‍🍳
-            </button>
-          ` : order.status === 'preparing' ? `
-            <button class="kds-action-btn btn-ready" onclick="updateOrderStatus('${order.id}', 'ready')">
-              Mark as Ready 🔔
-            </button>
-          ` : order.status === 'ready' ? `
-            <button class="kds-action-btn btn-serve" onclick="updateOrderStatus('${order.id}', 'completed')">
-              Serve &amp; Complete ✓
-            </button>
-          ` : `
-            <span style="font-size:12px; color:#10b981; font-weight:600;">✓ Completed &amp; Served</span>
-          `}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function updateOrderStatus(orderId, newStatus) {
-  const orders = getStoredOrders();
-  const target = orders.find(o => o.id === orderId);
-  if (target) {
-    target.status = newStatus;
-    saveStoredOrders(orders);
-    renderKdsOrders();
-    showToast(`Order ${orderId} marked as ${newStatus.toUpperCase()}`, 'success');
-  }
-}
-
-function markOrderPaid(orderId) {
-  const orders = getStoredOrders();
-  const target = orders.find(o => o.id === orderId);
-  if (target) {
-    target.paymentStatus = 'PAID';
-    saveStoredOrders(orders);
-    renderKdsOrders();
-    showToast(`Cash collected for order ${orderId}! Marked as PAID.`, 'success');
-  }
-}
-
-function openWalkinOrderModal() {
-  const table = prompt('Enter Table Number (1-12) or 0 for Takeaway:', '1');
-  if (table === null) return;
-  const num = parseInt(table, 10) || 0;
-  
-  // Create quick order for Cappuccino & Alfredo Pasta
-  const newOrder = {
-    id: 'CC-' + Math.floor(1000 + Math.random() * 9000),
-    table: num,
-    customerName: 'Walk-in Guest',
-    phone: '',
-    paymentMethod: 'counter',
-    paymentStatus: 'PAID',
-    specialNotes: 'Staff manual ticket',
-    items: [
-      { id: 'cappuccino', name: 'Cappuccino', qty: 1, price: 129 },
-      { id: 'creamy-alfredo-pasta', name: 'Creamy Alfredo Pasta', qty: 1, price: 219 }
-    ],
-    subtotal: 348,
-    tax: 17.4,
-    total: 365.4,
-    status: 'new',
-    createdAt: new Date().toISOString()
-  };
-
-  const orders = getStoredOrders();
-  orders.unshift(newOrder);
-  saveStoredOrders(orders);
-  renderKdsOrders();
-  playChimeSound();
-  showToast('Walk-in order created!', 'success');
-}
-
 // =============================================================================
 // 6. ORDER PAGE FILTERING & SORTING LOGIC
 // =============================================================================
@@ -1499,6 +862,7 @@ function closeCheckoutModal() {
 }
 
 function selectPaymentMethod(method) {
+  if (method !== currentPaymentMethod) orderKey = null; // a different payment choice is a different checkout
   currentPaymentMethod = method;
 
   const cardDigital = document.getElementById('pay-card-digital');
@@ -1512,7 +876,10 @@ function selectPaymentMethod(method) {
     cardCounter.classList.remove('selected');
     subviewDigital.style.display = 'block';
     subviewCounter.style.display = 'none';
-    if (confirmBtn) confirmBtn.innerText = 'I Have Paid Online — Confirm Table Order';
+    if (gatewayOn) {
+      subviewDigital.innerHTML = '<p class="story-text" style="font-size:14px;">You will pay in a secure payment window (UPI, cards, netbanking). Your order goes to the kitchen as soon as the payment is confirmed.</p>';
+      if (confirmBtn) confirmBtn.innerText = 'Pay Securely Online';
+    } else if (confirmBtn) confirmBtn.innerText = 'I Have Paid Online — Confirm Table Order';
   } else {
     cardCounter.classList.add('selected');
     cardDigital.classList.remove('selected');
@@ -1545,55 +912,84 @@ function generateDynamicPaymentUpi(amount) {
   });
 }
 
-function submitFinalOrder() {
-  if (cart.length === 0) return;
+function loadRazorpay() {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) return resolve();
+    const el = document.createElement('script');
+    el.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    el.onload = resolve;
+    el.onerror = () => reject(new Error('Could not load the payment window. Check your connection.'));
+    document.head.appendChild(el);
+  });
+}
+
+// Opens the gateway window. Resolves true only after OUR server verified the payment signature.
+async function payOnline(order, pay, name, phone) {
+  await loadRazorpay();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
+    const rz = new Razorpay({
+      key: pay.keyId, amount: pay.amount, currency: pay.currency, order_id: pay.orderId,
+      name: 'Coffee & Cravings', description: 'Order ' + order.id,
+      prefill: { name: name === 'Guest' ? '' : name, contact: phone }, theme: { color: '#1a1a1a' },
+      handler: async (r) => {
+        try {
+          const v = await fetch('/api/payments/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r) });
+          const d = await v.json().catch(() => ({}));
+          if (!v.ok) throw new Error(d.error || 'Could not confirm payment');
+          finish(true);
+        } catch (e) {
+          showToast('We could not confirm your payment yet. If money was deducted your order will reach the kitchen shortly. Order ID: ' + order.id, 'warning');
+          finish(false);
+        }
+      },
+      modal: { ondismiss: () => { showToast('Payment not completed. Your order has not been sent to the kitchen yet.', 'warning'); finish(false); } }
+    });
+    rz.on('payment.failed', () => showToast('Payment failed. You can try again.', 'error'));
+    rz.open();
+  });
+}
+
+async function submitFinalOrder() {
+  if (cart.length === 0 || orderSubmitting) return;
+  orderSubmitting = true;
 
   const custName = document.getElementById('cust-name-input')?.value.trim() || 'Guest';
   const custPhone = document.getElementById('cust-phone-input')?.value.trim() || '';
   const specialNotes = document.getElementById('order-special-notes')?.value.trim() || '';
+  if (!orderKey) orderKey = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2);
 
-  let subtotal = 0;
-  const orderItems = [];
-
-  cart.forEach(c => {
-    const p = MENU_ITEMS.find(m => m.id === c.id);
-    if (p) {
-      subtotal += p.price * c.qty;
-      orderItems.push({
-        id: p.id,
-        name: p.name,
-        qty: c.qty,
-        price: p.price
-      });
+  let order;
+  try {
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: orderKey, table: currentTable, sig: currentTableSig,
+        customerName: custName, phone: custPhone, paymentMethod: currentPaymentMethod,
+        specialNotes, items: cart.map(c => ({ id: c.id, qty: c.qty }))
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not place the order. Please try again.');
+    order = data.order;
+    if (data.payment) {
+      const paid = await payOnline(order, data.payment, custName, custPhone);
+      if (!paid) { orderSubmitting = false; return; } // order key kept: retrying reuses the same pending order
+      order = { ...order, status: 'new', paymentStatus: 'PAID' };
     }
-  });
+  } catch (err) {
+    orderSubmitting = false;
+    showToast(err.message || 'Network problem. Please try again.', 'error');
+    return;
+  }
+  orderSubmitting = false;
+  orderKey = null;
 
-  const tax = subtotal * 0.05;
-  const grandTotal = subtotal + tax;
-
-  const orderId = 'CC-' + Math.floor(1000 + Math.random() * 9000);
-  const paymentStatus = currentPaymentMethod === 'digital' ? 'PAID' : 'UNPAID';
-
-  const newOrder = {
-    id: orderId,
-    table: currentTable,
-    customerName: custName,
-    phone: custPhone,
-    paymentMethod: currentPaymentMethod,
-    paymentStatus: paymentStatus,
-    specialNotes: specialNotes,
-    items: orderItems,
-    subtotal: subtotal,
-    tax: tax,
-    total: grandTotal,
-    status: 'new',
-    createdAt: new Date().toISOString()
-  };
-
-  // Persist order to CC_ORDERS
-  const orders = getStoredOrders();
-  orders.unshift(newOrder);
-  saveStoredOrders(orders);
+  const orderId = order.id;
+  const orderItems = order.items;
+  const grandTotal = order.total;
 
   // Play audio chime
   playChimeSound();
@@ -1618,8 +1014,10 @@ function submitFinalOrder() {
 
     const payStatusEl = document.getElementById('success-receipt-payment');
     if (payStatusEl) {
-      if (currentPaymentMethod === 'digital') {
-        payStatusEl.innerHTML = `<span class="badge-rec" style="font-size:12px; padding:4px 8px;">✓ PAID: Digital UPI</span>`;
+      if (order.paymentStatus === 'PAID') {
+        payStatusEl.innerHTML = `<span class="badge-rec" style="font-size:12px; padding:4px 8px;">✓ PAID: Online payment confirmed</span>`;
+      } else if (currentPaymentMethod === 'digital') {
+        payStatusEl.innerHTML = `<span class="badge-rec" style="font-size:12px; padding:4px 8px;">UPI: barista will confirm your payment</span>`;
       } else {
         payStatusEl.innerHTML = `<span class="badge-counter" style="font-size:12px; padding:4px 8px;">💵 UNPAID: Pay Cash at Barista Counter</span>`;
       }
@@ -1725,9 +1123,6 @@ function handleMenuSearch(q) {
   `).join('');
 }
 
-function openAccountModal() {
-  alert(`Coffee & Cravings Account\n\nSigned in as: founder@coffeeandcravings.in\nRole: Store Admin & Barista Manager\n\nYou can access the Barista KDS directly from the top bar!`);
-}
 
 function openPolicyModal(type) {
   const modal = document.getElementById('policy-modal');
@@ -1828,7 +1223,7 @@ function handleContactSubmit(e) {
 // =============================================================================
 document.addEventListener('DOMContentLoaded', () => {
   initStorage();
-  initSampleOrders();
+  fetch('/api/config').then(r => r.json()).then(c => { gatewayOn = !!c.gateway; }).catch(() => {});
   checkCookiesAccepted();
   updateCartBadge();
 

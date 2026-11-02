@@ -25,19 +25,14 @@
 </head>
 <body class="x-fonts-playfair-display x-fonts-lora x-fonts-cinzel">
 
-  <!-- Top Announcement / Barista Quick Switcher -->
+  <!-- Top Announcement -->
   <aside class="top-announcement-bar" id="announcement-bar">
     <div class="announcement-content">
       <span>✨ Welcome to Coffee &amp; Cravings — Patna's cozy artisan cafe &amp; kitchen</span>
       <div class="announcement-actions">
-        <span class="table-pill" id="current-table-pill" onclick="openTablePickerModal()">
+        <span class="table-pill" id="current-table-pill">
           <span class="dot"></span> <span id="table-pill-text">Table: Walk-in / Takeaway</span>
-          <span class="change-tag">Change</span>
         </span>
-        <button class="top-barista-btn" onclick="navigateTo('barista-kds')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
-          Barista KDS Portal
-        </button>
       </div>
     </div>
   </aside>
@@ -73,11 +68,6 @@
           <span class="cart-badge" id="cart-badge-count">0</span>
         </button>
 
-        <!-- Account / Staff Trigger -->
-        <button class="icon-btn" onclick="openAccountModal()" title="Account &amp; Info" aria-label="Account">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </button>
-
         <!-- Mobile Hamburger -->
         <button class="hamburger-btn" id="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu">
           <span></span><span></span><span></span>
@@ -93,8 +83,6 @@
         <li><a href="#story" class="nav-item" data-nav="story" onclick="navigateTo('story'); return false;">OUR STORY</a></li>
         <li><a href="#gallery" class="nav-item" data-nav="gallery" onclick="navigateTo('gallery'); return false;">GALLERY</a></li>
         <li><a href="#contact" class="nav-item" data-nav="contact" onclick="navigateTo('contact'); return false;">CONTACT</a></li>
-        <li><a href="#qr-tables" class="nav-item highlight-nav" data-nav="qr-tables" onclick="navigateTo('qr-tables'); return false;">TABLE QR CODES</a></li>
-        <li><a href="#barista-kds" class="nav-item kds-nav" data-nav="barista-kds" onclick="navigateTo('barista-kds'); return false;">BARISTA PORTAL <span class="live-pulse"></span></a></li>
       </ul>
     </nav>
   </header>
@@ -111,9 +99,6 @@
       <li><a href="#story" onclick="navigateTo('story'); toggleMobileMenu(false); return false;">Our Story</a></li>
       <li><a href="#gallery" onclick="navigateTo('gallery'); toggleMobileMenu(false); return false;">Delightful Moments</a></li>
       <li><a href="#contact" onclick="navigateTo('contact'); toggleMobileMenu(false); return false;">Contact &amp; Hours</a></li>
-      <li class="divider"></li>
-      <li><a href="#qr-tables" class="text-gold" onclick="navigateTo('qr-tables'); toggleMobileMenu(false); return false;">📱 Table QR Generator</a></li>
-      <li><a href="#barista-kds" class="text-kds" onclick="navigateTo('barista-kds'); toggleMobileMenu(false); return false;">☕ Barista KDS Kitchen</a></li>
     </ul>
     <div class="mobile-drawer-footer">
       <p class="phone-link"><a href="tel:6205677925">📞 620-567-7925</a></p>
@@ -128,13 +113,12 @@
     <div class="table-banner-content">
       <span class="table-badge-large" id="table-banner-badge">TABLE 04</span>
       <span class="table-banner-msg">You are ordering for your table. Sit back — our barista will deliver straight to your seat!</span>
-      <button class="btn-text-light" onclick="openTablePickerModal()">Change Table</button>
     </div>
   </div>
 
   <!-- MAIN APP CONTAINER FOR VIEWS -->
   <main id="app-view-container">
-    <!-- Dynamic page views injected here: Home, Order, QR Generator, Barista KDS, Story, Gallery, Contact -->
+    <!-- Dynamic page views injected here: Home, Order, Story, Gallery, Contact -->
   </main>
 
   <!-- GODADDY SITE FOOTER -->
@@ -160,8 +144,6 @@
           <a href="#privacy" onclick="openPolicyModal('privacy'); return false;">Privacy Policy</a>
           <span class="sep">&bull;</span>
           <a href="#terms" onclick="openPolicyModal('terms'); return false;">Terms and Conditions</a>
-          <span class="sep">&bull;</span>
-          <a href="#qr-tables" onclick="navigateTo('qr-tables'); return false;">Staff QR Generator</a>
         </div>
       </div>
     </div>
@@ -180,7 +162,7 @@
     <!-- Table Assignment in Cart -->
     <div class="cart-table-selector">
       <span class="label">Dining Table:</span>
-      <select id="cart-table-select" onchange="onCartTableChange(this.value)">
+      <select id="cart-table-select" disabled onchange="onCartTableChange(this.value)">
         <option value="0">Takeaway / Counter</option>
         <option value="1">Table 01</option>
         <option value="2">Table 02</option>
@@ -370,7 +352,6 @@
 
         <div class="success-actions mt-3">
           <button class="btn-godaddy-dark full-width" onclick="closeCheckoutModal(); navigateTo('home');">Back to Cafe Home</button>
-          <button class="btn-godaddy-outline full-width mt-1" onclick="closeCheckoutModal(); navigateTo('barista-kds');">View on Barista Kitchen Screen</button>
         </div>
       </div>
     </div>
@@ -446,6 +427,7 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- APP JAVASCRIPT -->
+  <script src="menu-data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
