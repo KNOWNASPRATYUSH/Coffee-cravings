@@ -52,12 +52,13 @@ async function handleSession(req, res) {
 // -----------------------------------------------------------------------------
 async function sendEmailOtp(toEmail, otp) {
   // 1. Resend API (Free 3,000 emails/month, 0 credit card required)
-  if (process.env.RESEND_API_KEY) {
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
     try {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer ' + process.env.RESEND_API_KEY,
+          'Authorization': 'Bearer ' + resendKey,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
