@@ -1654,10 +1654,9 @@ function startMyOrdersPolling() {
 }
 
 // =============================================================================
-// CUSTOMER AUTHENTICATION (Firebase Google & Phone OTP)
+// CUSTOMER AUTHENTICATION (Google 1-Click & Gmail 6-Digit OTP - 100% Free)
 // =============================================================================
-let recaptchaVerifier = null;
-let confirmationResult = null;
+let activeOtpEmail = '';
 
 async function checkCustomerSession() {
   try {
@@ -1745,7 +1744,8 @@ function openCustomerAuthModal() {
     if (titleEl) titleEl.innerText = 'Sign In to Coffee & Cravings';
     if (unauthView) unauthView.style.display = 'block';
     if (authView) authView.style.display = 'none';
-    resetPhoneAuthStep();
+    resetEmailAuthStep();
+    initGoogleAuth();
   }
   modal.classList.add('open');
 }
@@ -1763,172 +1763,201 @@ function setAuthStatusMsg(msg, isError = false) {
   }
 }
 
-function initFirebase() {
-  if (typeof firebase === 'undefined') return false;
-  if (!firebase.apps.length) {
-    if (!window.isFirebaseConfigured || !window.isFirebaseConfigured()) return false;
-    firebase.initializeApp(window.FIREBASE_CONFIG);
+// -----------------------------------------------------------------------------
+// Google Identity Services (1-Click Google Sign-In - 100% Free Forever)
+// -----------------------------------------------------------------------------
+function initGoogleAuth() {
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) return;
+  try {
+    const clientId = window.GOOGLE_CLIENT_ID || '1047124312695-dummy.apps.googleusercontent.com';
+    google.accounts.id.initialize({
+      client_id: clientId,
+      callback: handleGoogleAuthCredential,
+      auto_select: false,
+      cancel_on_tap_outside: true
+    });
+    const gContainer = document.getElementById('google-signin-btn-container');
+    if (gContainer && !gContainer.hasChildNodes()) {
+      google.accounts.id.renderButton(gContainer, {
+        theme: 'outline',
+        size: 'large',
+        shape: 'pill',
+        width: 280,
+        text: 'continue_with'
+      });
+      const manualBtn = document.getElementById('google-auth-btn');
+      if (manualBtn) manualBtn.style.display = 'none';
+    }
+  } catch (e) {
+    console.warn('Google Auth Init:', e);
   }
-  return true;
+}
+
+async function handleGoogleAuthCredential(response) {
+  if (!response || !response.credential) return;
+  setAuthStatusMsg('Signing in with Google…');
+  try {
+    const r = await fetch('/api/customer/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: response.credential })
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) throw new Error(data.error || 'Google sign-in failed.');
+    await handleLoginSuccess(data.user);
+  } catch (err) {
+    setAuthStatusMsg(err.message || 'Google sign in failed.', true);
+  }
 }
 
 async function signInWithGoogle() {
-  setAuthStatusMsg('Connecting with Google…');
-  if (!initFirebase()) {
-    setAuthStatusMsg('Firebase keys not set in firebase-config.js yet.', true);
-    promptDemoLogin('Google');
-    return;
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    try {
+      google.accounts.id.prompt();
+      return;
+    } catch (_) {}
   }
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    const res = await firebase.auth().signInWithPopup(provider);
-    const u = res.user;
-    const idToken = await u.getIdToken();
-    await handleLoginSuccess({
-      uid: u.uid,
-      name: u.displayName,
-      email: u.email,
-      phone: u.phoneNumber,
-      photoUrl: u.photoURL,
-      idToken
-    });
-  } catch (err) {
-    setAuthStatusMsg(err.message || 'Google sign-in cancelled or failed.', true);
-  }
-}
-
-async function sendPhoneOtp() {
-  const input = document.getElementById('auth-phone-input');
-  const phone = (input ? input.value : '').replace(/[^0-9]/g, '').slice(-10);
-  if (phone.length !== 10) {
-    setAuthStatusMsg('Please enter a valid 10-digit mobile number.', true);
-    return;
-  }
-  setAuthStatusMsg('Sending OTP…');
-  if (!initFirebase()) {
-    setAuthStatusMsg('Firebase keys not set in firebase-config.js yet.', true);
-    promptDemoLogin('Phone', phone);
-    return;
-  }
-  try {
-    if (!recaptchaVerifier) {
-      recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-        size: 'invisible'
-      });
-    }
-    confirmationResult = await firebase.auth().signInWithPhoneNumber('+91' + phone, recaptchaVerifier);
-    document.getElementById('phone-auth-step1').style.display = 'none';
-    document.getElementById('phone-auth-step2').style.display = 'block';
-    setAuthStatusMsg(`OTP sent to +91 ${phone}! Check SMS.`);
-  } catch (err) {
-    if (err.code === 'auth/billing-not-enabled' || /billing-not-enabled/i.test(err.message || '')) {
-      setAuthStatusMsg('SMS requires Firebase Blaze or Test Number. Please use "Continue with Google" for instant free sign-in!', true);
-    } else {
-      setAuthStatusMsg(err.message || 'Could not send OTP.', true);
-    }
-  }
-}
-
-async function verifyPhoneOtp() {
-  const input = document.getElementById('auth-otp-input');
-  const otp = (input ? input.value : '').trim();
-  if (otp.length < 6) {
-    setAuthStatusMsg('Please enter the 6-digit OTP received via SMS.', true);
-    return;
-  }
-  setAuthStatusMsg('Verifying code…');
-  try {
-    const res = await confirmationResult.confirm(otp);
-    const u = res.user;
-    const idToken = await u.getIdToken();
-    await handleLoginSuccess({
-      uid: u.uid,
-      name: u.displayName || 'Guest',
-      phone: u.phoneNumber,
-      email: u.email,
-      idToken
-    });
-  } catch (err) {
-    setAuthStatusMsg(err.message || 'Invalid or expired OTP. Please try again.', true);
-  }
-}
-
-function resetPhoneAuthStep() {
-  const s1 = document.getElementById('phone-auth-step1');
-  const s2 = document.getElementById('phone-auth-step2');
-  if (s1) s1.style.display = 'block';
-  if (s2) s2.style.display = 'none';
-  const otpInput = document.getElementById('auth-otp-input');
-  if (otpInput) otpInput.value = '';
-}
-
-async function promptDemoLogin(type, phoneVal = '') {
-  const testName = prompt(`Firebase keys are not configured yet in firebase-config.js.\nEnter your name to test ${type} Sign-In:`, 'Pratyush');
-  if (!testName) return;
-  const demoPhone = phoneVal || prompt('Enter phone number for order tracking:', '9876543210') || '9876543210';
-  const demoUid = 'demo-' + demoPhone;
-  await handleLoginSuccess({
-    uid: demoUid,
-    name: testName,
-    email: `${testName.toLowerCase().replace(/[^a-z0-9]/g, '')}@gmail.com`,
-    phone: demoPhone
-  });
-}
-
-async function handleLoginSuccess(payload) {
+  const email = prompt('Enter your Gmail / Google address to sign in:', 'user@gmail.com');
+  if (!email) return;
+  const name = prompt('Enter your name:', email.split('@')[0]) || email.split('@')[0];
   try {
     const r = await fetch('/api/customer/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        uid: 'g_dev_' + Math.floor(Math.random() * 100000),
+        email,
+        name
+      })
     });
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({}));
-      throw new Error(d.error || 'Login failed.');
-    }
     const data = await r.json();
-    currentCustomerUser = data.user;
-    if (data.user.phone) {
-      customerPhone = data.user.phone;
-      try { localStorage.setItem('cc_cust_phone', customerPhone); } catch (e) {}
+    if (r.ok && data.ok) {
+      await handleLoginSuccess(data.user);
     }
-    if (data.user.name) {
-      customerName = data.user.name;
-      try { localStorage.setItem('cc_cust_name', customerName); } catch (e) {}
+  } catch (e) {
+    setAuthStatusMsg('Could not complete demo sign-in.', true);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Gmail / Email 6-Digit OTP Flow
+// -----------------------------------------------------------------------------
+async function sendEmailOtp() {
+  const input = document.getElementById('auth-email-input');
+  const email = (input ? input.value : '').trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    setAuthStatusMsg('Please enter a valid Gmail / Email address.', true);
+    return;
+  }
+  const btn = document.getElementById('send-otp-btn');
+  if (btn) { btn.disabled = true; btn.innerText = 'Sending Code…'; }
+  setAuthStatusMsg('Generating secure 6-digit code…');
+
+  try {
+    const r = await fetch('/api/customer/otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send', email })
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) throw new Error(data.error || 'Could not send code.');
+
+    activeOtpEmail = email;
+    document.getElementById('email-auth-step1').style.display = 'none';
+    document.getElementById('email-auth-step2').style.display = 'block';
+    const targetLabel = document.getElementById('email-otp-target-label');
+    if (targetLabel) targetLabel.textContent = `We sent a 6-digit code to ${email}`;
+
+    const otpInput = document.getElementById('auth-otp-input');
+    if (otpInput) {
+      otpInput.value = data.devCode || '';
+      otpInput.focus();
     }
-    updateCustomerHeaderUI();
-    closeCustomerAuthModal();
-    showToast(`Welcome, ${currentCustomerUser.name || 'Friend'}!`, 'success');
-    if (window._pendingCheckout) {
-      window._pendingCheckout = false;
-      setTimeout(() => {
-        openCheckoutModal();
-      }, 350);
-    } else if (currentView === 'my-orders') {
-      navigateTo('my-orders');
-    }
+    setAuthStatusMsg(data.message || `Code sent to ${email}! Check your inbox.`);
   } catch (err) {
-    setAuthStatusMsg(err.message || 'Server error during sign in.', true);
+    setAuthStatusMsg(err.message || 'Error sending code. Please try again.', true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerText = 'Send 6-Digit Code'; }
+  }
+}
+
+async function verifyEmailOtp() {
+  const input = document.getElementById('auth-otp-input');
+  const otp = (input ? input.value : '').trim();
+  if (!/^\d{6}$/.test(otp)) {
+    setAuthStatusMsg('Please enter the full 6-digit code.', true);
+    return;
+  }
+  const btn = document.getElementById('verify-otp-btn');
+  if (btn) { btn.disabled = true; btn.innerText = 'Verifying…'; }
+  setAuthStatusMsg('Verifying your code…');
+
+  try {
+    const r = await fetch('/api/customer/otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', email: activeOtpEmail, otp })
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) throw new Error(data.error || 'Invalid code.');
+
+    await handleLoginSuccess(data.user);
+  } catch (err) {
+    setAuthStatusMsg(err.message || 'Verification failed. Please try again.', true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerText = 'Verify & Sign In'; }
+  }
+}
+
+function resetEmailAuthStep() {
+  const s1 = document.getElementById('email-auth-step1');
+  const s2 = document.getElementById('email-auth-step2');
+  if (s1) s1.style.display = 'block';
+  if (s2) s2.style.display = 'none';
+  const otpInput = document.getElementById('auth-otp-input');
+  if (otpInput) otpInput.value = '';
+  setAuthStatusMsg('');
+}
+
+async function handleLoginSuccess(user) {
+  currentCustomerUser = user;
+  if (user.phone) {
+    customerPhone = user.phone;
+    try { localStorage.setItem('cc_cust_phone', customerPhone); } catch (e) {}
+  }
+  if (user.name) {
+    customerName = user.name;
+    try { localStorage.setItem('cc_cust_name', customerName); } catch (e) {}
+  }
+  closeCustomerAuthModal();
+  updateCustomerHeaderUI();
+  showToast(`Welcome, ${user.name || 'Friend'}!`, 'success');
+
+  if (window._pendingCheckout) {
+    window._pendingCheckout = false;
+    setTimeout(() => {
+      openCheckoutModal();
+    }, 350);
+  } else if (currentView === 'my-orders') {
+    navigateTo('my-orders');
   }
 }
 
 async function logoutCustomer() {
   try {
     await fetch('/api/customer/session', { method: 'DELETE' });
-    if (typeof firebase !== 'undefined' && firebase.auth) {
-      await firebase.auth().signOut().catch(() => {});
-    }
   } catch (e) {}
   currentCustomerUser = null;
   customerPhone = '';
   try { localStorage.removeItem('cc_cust_phone'); } catch (e) {}
-  updateCustomerHeaderUI();
   closeCustomerAuthModal();
+  updateCustomerHeaderUI();
   showToast('You have been signed out.', 'success');
   if (currentView === 'my-orders') {
     navigateTo('my-orders');
   }
 }
+
 
 function reorderItems(itemsJson) {
   try {

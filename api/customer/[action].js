@@ -266,3 +266,4 @@ module.exports = route(['GET', 'POST', 'DELETE'], async (req, res) => {
 
   throw new HttpError(404, 'Not found');
 });
+
