@@ -16,7 +16,7 @@ module.exports = route(['GET', 'POST', 'DELETE'], async (req, res) => {
   const isOwner = safeEq(pin, p.owner), isBarista = safeEq(pin, p.barista); // both always evaluated
   const role = isOwner ? 'owner' : isBarista ? 'barista' : null;
 
-  if (!role || !/^\d{6,12}$/.test(pin)) {
+  if (!role || !/^\d{4,12}$/.test(pin)) {
     await pipe([['INCR', ipKey], ['EXPIRE', ipKey, WINDOW_S, 'NX'], ['INCR', allKey], ['EXPIRE', allKey, WINDOW_S, 'NX']]);
     throw new HttpError(401, 'Incorrect PIN.');
   }

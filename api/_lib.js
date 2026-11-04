@@ -60,9 +60,9 @@ function secret() {
 }
 function pins() {
   const owner = process.env.OWNER_PIN, barista = process.env.BARISTA_PIN;
-  const ok = p => typeof p === 'string' && /^\d{6,12}$/.test(p);
+  const ok = p => typeof p === 'string' && /^\d{4,12}$/.test(p);
   if (!ok(owner) || !ok(barista)) {
-    if (IS_PROD) { console.error('OWNER_PIN / BARISTA_PIN must be 6-12 digits'); throw new HttpError(500, 'Server is not configured.'); }
+    if (IS_PROD) { console.error('OWNER_PIN / BARISTA_PIN must be 4-12 digits'); throw new HttpError(500, 'Server is not configured.'); }
     return { owner: owner || '111111', barista: barista || '222222' };
   }
   return { owner, barista };
