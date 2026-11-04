@@ -45,3 +45,4 @@ module.exports = route(['GET', 'POST', 'DELETE'], async (req, res) => {
 
   res.status(200).json({ ok: true, user });
 });
+
