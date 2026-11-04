@@ -823,7 +823,14 @@ function onCartTableChange(val) {
 function renderCartCustomerState() {
   const custBanner = document.getElementById('cart-cust-banner');
   if (custBanner) {
-    if (customerInfo && customerInfo.isNew && customerInfo.welcomeCoupon) {
+    if (!currentCustomerUser) {
+      custBanner.innerHTML = `
+        <div style="background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:10px 12px; margin-bottom:10px; font-size:12px; color:#92400e; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <span>🔒 <strong>Sign-in required</strong> to place orders</span>
+          <button type="button" onclick="openCustomerAuthModal()" style="background:#92400e; color:#fff; border:none; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">Sign In / Register</button>
+        </div>
+      `;
+    } else if (customerInfo && customerInfo.isNew && customerInfo.welcomeCoupon) {
       const wc = customerInfo.welcomeCoupon;
       custBanner.innerHTML = `
         <div style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:8px 10px; border-radius:6px; font-size:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
@@ -831,10 +838,12 @@ function renderCartCustomerState() {
           <button type="button" class="btn-godaddy-dark" style="font-size:11px; padding:4px 8px; white-space:nowrap;" onclick="applyWelcomeCoupon('${wc.code}')">Apply</button>
         </div>
       `;
-    } else if (customerInfo && !customerInfo.isNew) {
+    } else if (currentCustomerUser || (customerInfo && !customerInfo.isNew)) {
+      const displayName = (currentCustomerUser && currentCustomerUser.name) || (customerInfo && customerInfo.name) || 'friend';
       custBanner.innerHTML = `
-        <div style="font-size:12px; color:#4b5563; margin-bottom:8px;">
-          👋 Welcome back, <b>${customerInfo.name || 'friend'}</b>! (${customerInfo.orders} visits)
+        <div style="font-size:12px; color:#4b5563; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+          <span>👋 Ordering as <b>${displayName}</b></span>
+          <span style="color:#059669; font-weight:600; font-size:11px;">✓ Signed In</span>
         </div>
       `;
     } else {
@@ -842,12 +851,21 @@ function renderCartCustomerState() {
     }
   }
 
+  const checkoutBtn = document.querySelector('.checkout-btn');
+  if (checkoutBtn) {
+    if (currentCustomerUser) {
+      checkoutBtn.innerText = 'Proceed to Checkout';
+    } else {
+      checkoutBtn.innerText = '🔒 Sign In to Order';
+    }
+  }
+
   const greetEl = document.getElementById('checkout-cust-greeting');
   if (greetEl) {
     if (customerInfo && !customerInfo.isNew) {
       greetEl.innerHTML = `<span style="color:#047857; font-weight:600;">✓ Welcome back, ${customerInfo.name || 'friend'}! (${customerInfo.orders} previous orders)</span>`;
-    } else if (customerInfo && customerInfo.isNew && customerInfo.welcomeCoupon) {
-      greetEl.innerHTML = `<span style="color:#1d4ed8; font-weight:600;">🌟 Welcome! Eligible for first-order coupon: <b>${customerInfo.welcomeCoupon.code}</b></span>`;
+    } else if (customerInfo && customerInfo.welcomeCoupon) {
+      greetEl.innerHTML = `<span style="color:#1d4ed8; font-weight:600;">🌟 Eligible for first-order coupon: <b>${customerInfo.welcomeCoupon.code}</b></span>`;
     } else {
       greetEl.innerHTML = '';
     }
@@ -985,6 +1003,16 @@ function renderCartDrawer() {
 function openCheckoutModal() {
   if (cart.length === 0) {
     showToast('Please add items to your cart first', 'warning');
+    return;
+  }
+
+  // Mandatory signup / login rule before ordering
+  if (!currentCustomerUser) {
+    toggleCartDrawer(false);
+    openCustomerAuthModal();
+    setAuthStatusMsg('Please sign in or create an account to proceed with your order.', true);
+    showToast('Please sign in before placing your order', 'warning');
+    window._pendingCheckout = true;
     return;
   }
 
@@ -1140,6 +1168,18 @@ async function payOnline(order, pay, name, phone) {
 
 async function submitFinalOrder() {
   if (cart.length === 0 || orderSubmitting) return;
+
+  // Extra safeguard: mandatory signup/login
+  if (!currentCustomerUser) {
+    const modal = document.getElementById('checkout-modal');
+    if (modal) modal.classList.remove('open');
+    openCustomerAuthModal();
+    setAuthStatusMsg('Please sign in or create an account to place an order.', true);
+    showToast('Please sign in to place your order', 'warning');
+    window._pendingCheckout = true;
+    return;
+  }
+
   orderSubmitting = true;
 
   const custName = document.getElementById('cust-name-input')?.value.trim() || 'Guest';
@@ -1859,7 +1899,12 @@ async function handleLoginSuccess(payload) {
     updateCustomerHeaderUI();
     closeCustomerAuthModal();
     showToast(`Welcome, ${currentCustomerUser.name || 'Friend'}!`, 'success');
-    if (currentView === 'my-orders') {
+    if (window._pendingCheckout) {
+      window._pendingCheckout = false;
+      setTimeout(() => {
+        openCheckoutModal();
+      }, 350);
+    } else if (currentView === 'my-orders') {
       navigateTo('my-orders');
     }
   } catch (err) {
