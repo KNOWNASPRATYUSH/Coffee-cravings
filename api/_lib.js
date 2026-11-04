@@ -152,6 +152,22 @@ const tableSigOk = (n, sig) => typeof sig === 'string' && sig.length === 22 && s
 
 // ---------- request plumbing ----------
 const clientIp = (req) => String(req.headers['x-real-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();
+function isSameSiteOrigin(origin, host) {
+  if (!origin || !host) return true;
+  try {
+    const oHost = new URL(origin).host.toLowerCase();
+    const rHost = host.toLowerCase();
+    if (oHost === rHost) return true;
+    const cleanO = oHost.replace(/^www\./, '');
+    const cleanR = rHost.replace(/^www\./, '');
+    if (cleanO === cleanR) return true;
+    if (cleanO.endsWith('.vercel.app') && cleanR.endsWith('.vercel.app')) return true;
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
 function route(methods, fn) {
   return async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -160,7 +176,7 @@ function route(methods, fn) {
       if (!methods.includes(req.method)) { res.setHeader('Allow', methods.join(', ')); throw new HttpError(405, 'Method not allowed'); }
       if (req.method !== 'GET') {
         const origin = req.headers.origin;
-        if (origin && new URL(origin).host !== req.headers.host) throw new HttpError(403, 'Forbidden');
+        if (origin && !isSameSiteOrigin(origin, req.headers.host)) throw new HttpError(403, 'Forbidden');
         if (!/^application\/json/i.test(req.headers['content-type'] || '')) throw new HttpError(415, 'JSON required');
         if (JSON.stringify(req.body || {}).length > 20000) throw new HttpError(413, 'Request too large');
         if (req.body === null || typeof req.body !== 'object') req.body = {};

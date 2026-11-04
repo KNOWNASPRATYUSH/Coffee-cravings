@@ -1316,7 +1316,21 @@ async function submitFinalOrder() {
 // =============================================================================
 function openTablePickerModal() {
   const modal = document.getElementById('table-picker-modal');
-  if (modal) modal.classList.add('open');
+  if (modal) {
+    const btns = modal.querySelectorAll('.table-select-btn');
+    btns.forEach((btn, idx) => {
+      if (idx === currentTable) {
+        btn.style.background = '#1a1a1a';
+        btn.style.color = '#ffffff';
+        btn.style.borderColor = '#1a1a1a';
+      } else {
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }
+    });
+    modal.classList.add('open');
+  }
 }
 
 function closeTablePickerModal() {
