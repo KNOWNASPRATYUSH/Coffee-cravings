@@ -1260,6 +1260,13 @@ async function submitFinalOrder() {
   }
 
   const orderId = order.id;
+  try {
+    const recent = JSON.parse(localStorage.getItem('cc_recent_orders') || '[]');
+    if (!recent.includes(orderId)) {
+      recent.unshift(orderId);
+      localStorage.setItem('cc_recent_orders', JSON.stringify(recent.slice(0, 10)));
+    }
+  } catch (e) {}
   const orderItems = order.items;
   const grandTotal = order.total;
 
@@ -1495,6 +1502,9 @@ const ORDER_STATUS_COLOR = {
 
 function renderMyOrdersPage() {
   const isLoggedIn = !!currentCustomerUser;
+  let recentList = [];
+  try { recentList = JSON.parse(localStorage.getItem('cc_recent_orders') || '[]'); } catch (e) {}
+  const hasOrdersScope = isLoggedIn || !!customerPhone || recentList.length > 0;
   const userHeaderHtml = isLoggedIn ? `
     <div style="background:#fff; border-radius:14px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 2px 10px rgba(0,0,0,0.06); border:1px solid #f3f4f6;">
       <div style="display:flex; align-items:center; gap:12px;">
@@ -1525,7 +1535,7 @@ function renderMyOrdersPage() {
 
         ${userHeaderHtml}
 
-        <div id="my-orders-phone-form" style="${(isLoggedIn || customerPhone) ? 'display:none' : ''}">
+        <div id="my-orders-phone-form" style="${hasOrdersScope ? 'display:none' : ''}">
           <div style="max-width:360px; margin:0 auto; background:#fff; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.08);">
             <label style="display:block; font-size:14px; font-weight:600; margin-bottom:8px; color:#374151;">📱 Track as Guest with Phone</label>
             <input id="tracker-phone-input" type="tel" inputmode="numeric" placeholder="e.g. 9876543210"
@@ -1534,7 +1544,7 @@ function renderMyOrdersPage() {
           </div>
         </div>
 
-        <div id="my-orders-list" style="${(isLoggedIn || customerPhone) ? '' : 'display:none'}">
+        <div id="my-orders-list" style="${hasOrdersScope ? '' : 'display:none'}">
           ${!isLoggedIn && customerPhone ? `
             <div style="text-align:center; margin-bottom:16px;">
               <span style="font-size:13px; color:#6b7280;">Tracking orders for <strong id="tracker-phone-display">${customerPhone}</strong></span>
@@ -1578,8 +1588,15 @@ async function loadAndRenderMyOrders() {
   const container = document.getElementById('my-orders-cards');
   if (!container) return;
 
-  const url = currentCustomerUser ? '/api/my-orders' : ('/api/my-orders?phone=' + encodeURIComponent(customerPhone || ''));
-  if (!currentCustomerUser && !customerPhone) return;
+  let recentList = [];
+  try { recentList = JSON.parse(localStorage.getItem('cc_recent_orders') || '[]'); } catch (e) {}
+
+  const params = new URLSearchParams();
+  if (customerPhone) params.set('phone', customerPhone);
+  if (recentList.length) params.set('recent', recentList.join(','));
+
+  const url = '/api/my-orders' + (params.toString() ? ('?' + params.toString()) : '');
+  if (!currentCustomerUser && !customerPhone && !recentList.length) return;
 
   try {
     const r = await fetch(url);
@@ -1681,7 +1698,9 @@ async function loadAndRenderMyOrders() {
 }
 
 function startMyOrdersPolling() {
-  if (!currentCustomerUser && !customerPhone) return;
+  let recentList = [];
+  try { recentList = JSON.parse(localStorage.getItem('cc_recent_orders') || '[]'); } catch (e) {}
+  if (!currentCustomerUser && !customerPhone && !recentList.length) return;
   loadAndRenderMyOrders(); // immediate load
   if (myOrdersPoller) clearInterval(myOrdersPoller);
   myOrdersPoller = setInterval(loadAndRenderMyOrders, 8000);

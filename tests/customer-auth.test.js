@@ -85,6 +85,15 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     assert.equal(capp.price, 129);
   });
 
+  // 5b. Live tracking via recent order IDs
+  await t('GET /api/my-orders with ?recent=CC-xxxx returns active live order', async () => {
+    const r = await call(myOrders, { method: 'GET', url: '/api/my-orders?recent=CC-1001', ip: '9.9.9.5' });
+    assert.equal(r.code, 200);
+    assert(Array.isArray(r.body.orders));
+    assert(r.body.orders.length >= 1, 'Should return active recent order');
+    assert.equal(r.body.orders[0].id, 'CC-1001');
+  });
+
   // 6. Gmail OTP: Send OTP
   let devOtpCode = '';
   await t('POST /api/customer/otp action=send generates 6-digit OTP for email', async () => {

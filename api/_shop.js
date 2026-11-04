@@ -7,6 +7,13 @@ const ist = (ts) => { const d = new Date(ts + 19800000); return { day: d.toISOSt
 const text = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>"`\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 const parse = (raw) => { try { return raw ? JSON.parse(raw) : null; } catch (e) { return null; } };
 const cleanPhone = (v) => String(v || '').replace(/[^0-9]/g, '').slice(-15);
+const isPhone = (v) => {
+  if (typeof v !== 'string' && typeof v !== 'number') return false;
+  const s = String(v).trim();
+  if (/[a-zA-Z_]/.test(s)) return false;
+  const digits = s.replace(/\D/g, '');
+  return digits.length >= 6 && digits.length <= 15;
+};
 
 // ---------- menu ----------
 async function loadMenu() {
@@ -293,25 +300,56 @@ async function listCustomers(start = 0, stop = 99) {
   }));
 }
 
-async function getCustomerOrders(identifier) {
-  if (!identifier) return [];
-  const p = cleanPhone(identifier);
-  let rawMap = {};
-  if (p && p.length >= 6) {
-    rawMap = toObj(await cmd('HGETALL', 'cust:orders:' + p));
-    const uid = await cmd('GET', 'cust:phone2uid:' + p);
-    if (uid) {
-      const uidMap = toObj(await cmd('HGETALL', 'cust:orders:uid:' + uid));
-      rawMap = { ...uidMap, ...rawMap };
-    }
-  } else {
-    rawMap = toObj(await cmd('HGETALL', 'cust:orders:uid:' + identifier));
-    const linkedPhone = await cmd('GET', 'cust:uid2phone:' + identifier);
-    if (linkedPhone) {
-      const phoneMap = toObj(await cmd('HGETALL', 'cust:orders:' + linkedPhone));
-      rawMap = { ...phoneMap, ...rawMap };
+async function getCustomerOrders(identifier, extraPhone = '') {
+  if (!identifier && !extraPhone) return [];
+  const rawMap = {};
+  const phonesToCheck = new Set();
+  const uidsToCheck = new Set();
+
+  if (isPhone(identifier)) {
+    phonesToCheck.add(cleanPhone(identifier));
+  } else if (identifier && typeof identifier === 'string') {
+    uidsToCheck.add(identifier.trim());
+  }
+
+  if (extraPhone && isPhone(extraPhone)) {
+    phonesToCheck.add(cleanPhone(extraPhone));
+  }
+
+  for (const uid of uidsToCheck) {
+    const uidMap = toObj(await cmd('HGETALL', 'cust:orders:uid:' + uid));
+    Object.assign(rawMap, uidMap);
+
+    const linkedPhone = await cmd('GET', 'cust:uid2phone:' + uid);
+    if (linkedPhone && isPhone(linkedPhone)) phonesToCheck.add(cleanPhone(linkedPhone));
+
+    const userProfile = toObj(await cmd('HGETALL', 'cust:user:' + uid));
+    if (userProfile && userProfile.phone && isPhone(userProfile.phone)) {
+      phonesToCheck.add(cleanPhone(userProfile.phone));
     }
   }
+
+  for (const phone of phonesToCheck) {
+    const phoneMap = toObj(await cmd('HGETALL', 'cust:orders:' + phone));
+    Object.assign(rawMap, phoneMap);
+
+    const linkedUid = await cmd('GET', 'cust:phone2uid:' + phone);
+    if (linkedUid && !uidsToCheck.has(linkedUid)) {
+      const uidOrders = toObj(await cmd('HGETALL', 'cust:orders:uid:' + linkedUid));
+      Object.assign(rawMap, uidOrders);
+    }
+  }
+
+  if (uidsToCheck.size > 0 && phonesToCheck.size > 0) {
+    const firstUid = [...uidsToCheck][0];
+    const firstPhone = [...phonesToCheck][0];
+    await pipe([
+      ['SET', 'cust:phone2uid:' + firstPhone, firstUid],
+      ['SET', 'cust:uid2phone:' + firstUid, firstPhone],
+      ['HSET', 'cust:user:' + firstUid, 'phone', firstPhone]
+    ]);
+  }
+
   return Object.values(rawMap).map(parse).filter(Boolean).sort((a, b) => new Date(b.at) - new Date(a.at));
 }
 
@@ -407,7 +445,7 @@ module.exports = {
   ist, text, loadMenu, saveMenu, publicItem, upsertItem,
   loadDeals, cleanDeal, publicDeal, applyDealsToCart,
   cleanCoupon, cleanCode, checkCoupon,
-  cleanPhone, lookupCustomer, recordCustomerOrder, recordCustomerPayment, listCustomers, getCustomerOrders,
+  cleanPhone, isPhone, lookupCustomer, recordCustomerOrder, recordCustomerPayment, listCustomers, getCustomerOrders,
   recordCouponUsed, getCustomerCoupons,
   upsertCustomerUser, getCustomerUser,
   bump, recordSale
