@@ -2,7 +2,7 @@
    Everything here is only useful after a server-verified PIN login (httpOnly cookie). */
 'use strict';
 const root = document.getElementById('staff-root');
-let role = null, staffOrders = [], knownIds = null, pollTimer = null, fetching = false;
+let role = null, staffOrders = [], knownIds = null, pollTimer = null, fetching = false, ordersRev = '';
 let currentTab = 'orders', kdsFilter = 'all', selectedQrPlacardTable = 1, qrToken = 0;
 
 const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -68,7 +68,7 @@ async function api(path, opts = {}) {
 
 // ---------------- login ----------------
 function renderLogin(msg) {
-  role = null; knownIds = null; staffOrders = [];
+  role = null; knownIds = null; staffOrders = []; ordersRev = '';
   root.innerHTML = `
     <div style="max-width:380px; margin:12vh auto 0; padding:32px 28px; background:#fff; border:1px solid #e5e5e5; border-radius:8px; text-align:center;">
       <span class="brand-title-small" style="display:block; margin-bottom:10px;">COFFEE &amp; CRAVINGS</span>
@@ -114,26 +114,35 @@ function start(r) {
         <span class="brand-title-small">COFFEE &amp; CRAVINGS · STAFF</span>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <span class="kds-live-tag">${esc(role.toUpperCase())}</span>
-          ${role === 'owner' ? `<button class="btn-godaddy-outline" style="font-size:12px; padding:8px 16px;" id="tab-btn" onclick="switchTab()">QR Codes</button>` : ''}
           <button class="btn-godaddy-dark" style="font-size:12px; padding:8px 16px;" onclick="staffLogout()">Log out</button>
         </div>
       </div>
+      ${role === 'owner' ? '<div id="staff-nav" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;"></div>' : ''}
       <div id="staff-offline" role="status" style="display:none; background:#fef2f2; color:#991b1b; padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:13px;">Connection lost — retrying. Orders shown may be out of date.</div>
       <div id="staff-view"></div>
     </div>`;
   showTab();
   fetchOrders();
   stopPolling();
-  pollTimer = setInterval(() => { if (document.visibilityState === 'visible') fetchOrders(); }, 5000);
+  pollTimer = setInterval(() => { if (document.visibilityState === 'visible') fetchOrders(); }, 8000);
 }
 function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && role) fetchOrders(); });
 
-function switchTab() { currentTab = currentTab === 'orders' ? 'qr' : 'orders'; showTab(); }
+function setTab(t) { currentTab = t; showTab(); }
+function renderNav() {
+  const el = document.getElementById('staff-nav'); if (!el) return;
+  el.innerHTML = [['orders', 'Orders'], ['reports', 'Reports'], ['menu', 'Menu'], ['coupons', 'Coupons'], ['qr', 'QR Codes']].map(([k, l]) =>
+    `<button class="${currentTab === k ? 'btn-godaddy-dark' : 'btn-godaddy-outline'}" style="font-size:12px; padding:8px 16px;" onclick="setTab('${k}')">${l}</button>`).join('');
+}
 function showTab() {
-  const v = document.getElementById('staff-view'), b = document.getElementById('tab-btn');
-  if (b) b.textContent = currentTab === 'orders' ? 'QR Codes' : 'Back to Orders';
-  if (currentTab === 'qr' && role === 'owner') { v.innerHTML = renderQrTablesPage(); generatePlacardQr(selectedQrPlacardTable); }
+  const v = document.getElementById('staff-view');
+  if (role !== 'owner') currentTab = 'orders';
+  renderNav();
+  if (currentTab === 'qr') { v.innerHTML = renderQrTablesPage(); generatePlacardQr(selectedQrPlacardTable); }
+  else if (currentTab === 'reports') renderReports(v);
+  else if (currentTab === 'menu') renderMenuAdmin(v);
+  else if (currentTab === 'coupons') renderCoupons(v);
   else { v.innerHTML = renderBaristaKdsPage(); renderKdsOrders(); }
 }
 
@@ -142,7 +151,10 @@ async function fetchOrders(manual) {
   if (fetching) return;
   fetching = true;
   try {
-    const d = await api('/api/staff/orders');
+    const d = await api('/api/staff/orders?rev=' + encodeURIComponent(manual ? '' : ordersRev));
+    const off0 = document.getElementById('staff-offline'); if (off0) off0.style.display = 'none';
+    if (d.unchanged) return;
+    ordersRev = d.rev;
     const ids = new Set(d.orders.map(o => o.id));
     if (knownIds) {
       const fresh = d.orders.filter(o => !knownIds.has(o.id));

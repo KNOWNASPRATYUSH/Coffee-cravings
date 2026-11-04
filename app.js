@@ -15,6 +15,39 @@ let currentView = 'home';
 let currentTableSig = '';
 let orderSubmitting = false;
 let gatewayOn = false;
+let appliedCoupon = null; // rule returned by /api/config?coupon=CODE
+
+// Same rules as the server: discount first, GST on the discounted amount.
+function calcTotals(subtotal) {
+  let discount = 0;
+  const c = appliedCoupon;
+  if (c && subtotal >= c.minOrder) {
+    discount = c.type === 'percent' ? Math.floor(subtotal * 100 * c.value / 100) / 100 : c.value;
+    if (c.type === 'percent' && c.maxDiscount > 0) discount = Math.min(discount, c.maxDiscount);
+    discount = Math.min(discount, subtotal);
+  }
+  const tax = Math.round((subtotal - discount) * 5) / 100;
+  return { discount, tax, grandTotal: Math.round((subtotal - discount + tax) * 100) / 100 };
+}
+
+async function applyCoupon() {
+  const input = document.getElementById('coupon-input');
+  const msg = document.getElementById('coupon-msg');
+  const code = (input.value || '').trim();
+  if (!code) return;
+  msg.style.color = '#555'; msg.innerText = 'Checking…';
+  try {
+    const r = await fetch('/api/config?coupon=' + encodeURIComponent(code));
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Could not check the coupon.');
+    appliedCoupon = d.coupon;
+    renderCartDrawer();
+  } catch (e) {
+    appliedCoupon = null; renderCartDrawer();
+    msg.style.color = '#b91c1c'; msg.innerText = e.message;
+  }
+}
+function removeCoupon() { appliedCoupon = null; renderCartDrawer(); }
 let orderKey = null;
 let currentTable = 0; // 0 = Walk-in/takeaway, 1-12 = Table number
 let cart = []; // [{ id, qty, note }]
@@ -345,12 +378,11 @@ function renderHomePage() {
 function renderOrderPage() {
   const filteredItems = getFilteredMenuItems();
 
+  const CAT_LABELS = { coffee: 'Coffee', frappes: 'Frappes & Coolers', pastas: 'Pastas & Snacks', burgers: 'Burgers & Fries' };
+  const catKeys = [...new Set(MENU_ITEMS.map(i => i.category))];
   const categories = [
     { key: 'all', name: 'All Products', count: MENU_ITEMS.length },
-    { key: 'coffee', name: 'Coffee', count: MENU_ITEMS.filter(i => i.category === 'coffee').length },
-    { key: 'frappes', name: 'Frappes & Coolers', count: MENU_ITEMS.filter(i => i.category === 'frappes').length },
-    { key: 'pastas', name: 'Pastas & Snacks', count: MENU_ITEMS.filter(i => i.category === 'pastas').length },
-    { key: 'burgers', name: 'Burgers & Fries', count: MENU_ITEMS.filter(i => i.category === 'burgers').length }
+    ...catKeys.map(k => ({ key: k, name: CAT_LABELS[k] || MENU_ITEMS.find(i => i.category === k).categoryName || k, count: MENU_ITEMS.filter(i => i.category === k).length }))
   ];
 
   return `
@@ -797,10 +829,24 @@ function renderCartDrawer() {
 
   container.innerHTML = itemsHtml;
 
-  const tax = subtotal * 0.05;
-  const grandTotal = subtotal + tax;
+  const { discount, tax, grandTotal } = calcTotals(subtotal);
 
   const subtotalEl = document.getElementById('cart-subtotal');
+  const discRow = document.getElementById('cart-discount-row');
+  const couponMsg = document.getElementById('coupon-msg');
+  if (discRow) {
+    discRow.style.display = discount > 0 ? 'flex' : 'none';
+    document.getElementById('cart-discount').innerText = `−₹${discount.toFixed(2)}`;
+  }
+  if (couponMsg && appliedCoupon) {
+    if (discount > 0) {
+      couponMsg.style.color = '#15803d';
+      couponMsg.innerHTML = `✓ ${appliedCoupon.code} applied <a href="#" onclick="removeCoupon(); return false;" style="margin-left:8px;">Remove</a>`;
+    } else {
+      couponMsg.style.color = '#b45309';
+      couponMsg.innerText = `${appliedCoupon.code}: add items worth ₹${appliedCoupon.minOrder} or more to use it.`;
+    }
+  }
   const taxEl = document.getElementById('cart-tax');
   const grandTotalEl = document.getElementById('cart-grand-total');
 
@@ -841,8 +887,7 @@ function openCheckoutModal() {
     const p = MENU_ITEMS.find(m => m.id === c.id);
     if (p) subtotal += p.price * c.qty;
   });
-  const tax = subtotal * 0.05;
-  const grandTotal = subtotal + tax;
+  const { grandTotal } = calcTotals(subtotal);
 
   const totalHeading = document.getElementById('checkout-total-heading');
   if (totalHeading) {
@@ -966,7 +1011,7 @@ async function submitFinalOrder() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        key: orderKey, table: currentTable, sig: currentTableSig,
+        key: orderKey, table: currentTable, sig: currentTableSig, coupon: appliedCoupon ? appliedCoupon.code : '',
         customerName: custName, phone: custPhone, paymentMethod: currentPaymentMethod,
         specialNotes, items: cart.map(c => ({ id: c.id, qty: c.qty }))
       })
@@ -981,11 +1026,13 @@ async function submitFinalOrder() {
     }
   } catch (err) {
     orderSubmitting = false;
+    if (/coupon/i.test(err.message || '')) { appliedCoupon = null; renderCartDrawer(); }
     showToast(err.message || 'Network problem. Please try again.', 'error');
     return;
   }
   orderSubmitting = false;
   orderKey = null;
+  appliedCoupon = null;
 
   const orderId = order.id;
   const orderItems = order.items;
@@ -1221,9 +1268,26 @@ function handleContactSubmit(e) {
 // =============================================================================
 // 11. INITIALIZATION ON DOM READY
 // =============================================================================
-document.addEventListener('DOMContentLoaded', () => {
+// Menu, prices and availability come from the server (owner edits show up instantly). menu-data.js is only the fallback.
+async function loadLiveMenu() {
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 3000);
+    const r = await fetch('/api/config', { signal: ctl.signal });
+    clearTimeout(timer);
+    if (!r.ok) return;
+    const c = await r.json();
+    gatewayOn = !!c.gateway;
+    if (Array.isArray(c.menu)) MENU_ITEMS.splice(0, MENU_ITEMS.length, ...c.menu);
+    const before = cart.length;
+    cart = cart.filter(l => MENU_ITEMS.some(m => m.id === l.id)); // product removed/hidden meanwhile
+    if (cart.length !== before) saveCart();
+  } catch (e) { /* offline or slow: keep the built-in menu */ }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
   initStorage();
-  fetch('/api/config').then(r => r.json()).then(c => { gatewayOn = !!c.gateway; }).catch(() => {});
+  await loadLiveMenu();
   checkCookiesAccepted();
   updateCartBadge();
 

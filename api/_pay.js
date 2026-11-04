@@ -3,6 +3,7 @@
 // manual flow (UPI order arrives UNPAID and the barista confirms it).
 const crypto = require('crypto');
 const { cmd, toObj, HttpError } = require('./_lib');
+const { recordSale, bump } = require('./_shop');
 
 const env = () => ({ id: process.env.RAZORPAY_KEY_ID, secret: process.env.RAZORPAY_KEY_SECRET, hook: process.env.RAZORPAY_WEBHOOK_SECRET });
 const enabled = () => { const e = env(); return !!(e.id && e.secret && e.hook); };
@@ -37,7 +38,11 @@ async function markPaid(gatewayOrderId, paymentId, amountPaise) {
   const f = toObj(await cmd('HGETALL', key));
   if (!f.data) return null;
   if (amountPaise != null && Number(f.amount) !== Number(amountPaise)) { console.error('payment amount mismatch for', ours); return null; }
-  if (f.status === 'awaiting_payment') await cmd('HSET', key, 'status', 'new', 'paymentStatus', 'PAID', 'paymentRef', String(paymentId || ''));
+  if (f.status === 'awaiting_payment') {
+    await cmd('HSET', key, 'status', 'new', 'paymentStatus', 'PAID', 'paymentRef', String(paymentId || ''));
+    await recordSale(JSON.parse(f.data));
+    await bump();
+  }
   return ours;
 }
 module.exports = { enabled, keyId, env, hmacHex, sigOk, createGatewayOrder, markPaid };

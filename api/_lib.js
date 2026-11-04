@@ -1,6 +1,5 @@
 'use strict';
 const crypto = require('crypto');
-const MENU = require('../menu-data.js');
 
 const IS_PROD = !!process.env.VERCEL || process.env.NODE_ENV === 'production'; // any Vercel deployment (preview too) is treated as production: no dev fallbacks
 const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || process.env.STORAGE_KV_REST_API_URL;
@@ -25,6 +24,9 @@ function memExec(c) {
     case 'EXPIRE': return 1;
     case 'EXISTS': return (mem.kv.has(k) || mem.h.has(k)) ? 1 : 0;
     case 'HSET': { const o = mem.h.get(k) || {}; for (let i = 0; i < a.length; i += 2) o[a[i]] = String(a[i + 1]); mem.h.set(k, o); return 1; }
+    case 'HGET': { const o = mem.h.get(k); return o && o[a[0]] !== undefined ? o[a[0]] : null; }
+    case 'HDEL': { const o = mem.h.get(k); if (o) delete o[a[0]]; return 1; }
+    case 'HINCRBY': { const o = mem.h.get(k) || {}; o[a[0]] = String((parseInt(o[a[0]], 10) || 0) + Number(a[1])); mem.h.set(k, o); return Number(o[a[0]]); }
     case 'HGETALL': { const o = mem.h.get(k); return o ? Object.entries(o).flat() : []; }
     case 'ZADD': { const z = mem.z.get(k) || new Map(); z.set(a[1], Number(a[0])); mem.z.set(k, z); return 1; }
     case 'ZREVRANGE': { const z = mem.z.get(k) || new Map(); return [...z.entries()].sort((x, y) => y[1] - x[1]).map(e => e[0]).slice(Number(a[0]), Number(a[1]) + 1); }
@@ -128,6 +130,5 @@ function route(methods, fn) {
   };
 }
 
-const menuMap = new Map(MENU.map(m => [m.id, m]));
 module.exports = { HttpError, cmd, pipe, toObj, pins, safeEq, issueToken, readToken, cookieOf, setSessionCookie, requireStaff,
-  tableSig, tableSigOk, clientIp, route, menuMap, MAX_TABLE, ORDER_TTL_S, SESSION_MS, _mem: mem };
+  tableSig, tableSigOk, clientIp, route, MAX_TABLE, ORDER_TTL_S, SESSION_MS, _mem: mem };

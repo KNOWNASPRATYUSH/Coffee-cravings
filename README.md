@@ -27,3 +27,13 @@ and redeploy — every existing barista session is signed out immediately. Rotat
 Flow: UPI/card order is created as `awaiting_payment` (barista cannot see it) -> gateway confirms (browser callback is
 verified by signature, webhook is the safety net) -> order becomes **PAID** and appears on the barista screen.
 "Pay at Counter" orders go straight to the barista as UNPAID.
+
+## Owner portal (`/staff`, owner PIN)
+- **Reports:** today / 7 / 30 days. Revenue, paid orders, average order, discounts, GST, busy hours, top items, payment split, CSV download. Only PAID orders count, each exactly once.
+- **Menu:** add / edit / hide / delete products and categories. Changes reach customers immediately (images are https links for now).
+- **Coupons:** percent or flat, minimum order, max discount, expiry date, usage limit, on/off. Discount applies before GST. The server re-checks every coupon at order time.
+- Barista PIN only sees Orders.
+
+## Redis usage
+Barista screens ask "anything new?" every 8 s (1 Redis command) and download orders only when something changed.
+Sales totals are kept as small daily counters, so reports stay fast and orders can expire after 48 h.

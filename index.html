@@ -196,10 +196,23 @@
         <input type="text" id="order-special-notes" placeholder="e.g. Less sugar, extra crispy fries, no onion" />
       </div>
 
+      <div class="cart-instruction-box">
+        <label for="coupon-input">Have a coupon?</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="coupon-input" placeholder="Enter code" maxlength="20" autocomplete="off" style="text-transform:uppercase;" />
+          <button type="button" class="btn-godaddy-outline" style="padding:8px 16px; font-size:12px;" onclick="applyCoupon()">Apply</button>
+        </div>
+        <div id="coupon-msg" style="font-size:12px; margin-top:6px;"></div>
+      </div>
+
       <div class="cart-totals">
         <div class="total-line">
           <span>Subtotal</span>
           <span id="cart-subtotal">₹0.00</span>
+        </div>
+        <div class="total-line" id="cart-discount-row" style="display:none; color:#15803d;">
+          <span>Discount</span>
+          <span id="cart-discount">−₹0.00</span>
         </div>
         <div class="total-line">
           <span>GST (5%)</span>
