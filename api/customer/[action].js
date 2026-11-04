@@ -13,7 +13,6 @@ const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 // 1. Session Handler: /api/customer/session
 // -----------------------------------------------------------------------------
 async function handleSession(req, res) {
-  // Check active session
   if (req.method === 'GET') {
     const cust = customerOf(req);
     if (!cust) return res.json({ loggedIn: false, user: null });
@@ -21,13 +20,11 @@ async function handleSession(req, res) {
     return res.json({ loggedIn: true, user: profile || cust });
   }
 
-  // Logout
   if (req.method === 'DELETE') {
     clearCustomerCookie(res);
     return res.json({ ok: true });
   }
 
-  // Session creation / login
   const b = req.body || {};
   const uid = text(b.uid, 128);
   if (!uid || uid.length < 3) {
@@ -54,6 +51,7 @@ async function handleSession(req, res) {
 // 2. Email OTP Handler: /api/customer/otp
 // -----------------------------------------------------------------------------
 async function sendEmailOtp(toEmail, otp) {
+  // 1. Resend API (Free 3,000 emails/month, 0 credit card required)
   if (process.env.RESEND_API_KEY) {
     try {
       const res = await fetch('https://api.resend.com/emails', {
@@ -63,18 +61,56 @@ async function sendEmailOtp(toEmail, otp) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'Coffee & Cravings <login@coffeeandcravings.in>',
+          from: process.env.EMAIL_FROM || 'Coffee & Cravings <onboarding@resend.dev>',
           to: [toEmail],
           subject: `${otp} is your Coffee & Cravings sign-in code`,
-          html: `<div style="font-family:sans-serif; max-width:480px; margin:0 auto; padding:24px; border:1px solid #e5e7eb; border-radius:12px;"><h2 style="color:#78350f;">☕ Coffee & Cravings</h2><p>Your one-time sign-in code is:</p><div style="font-size:32px; font-weight:700; letter-spacing:6px; color:#1f2937; margin:20px 0; background:#fef3c7; padding:12px; text-align:center; border-radius:8px;">${otp}</div><p style="color:#6b7280; font-size:13px;">Expires in 5 minutes.</p></div>`
+          html: `
+            <div style="font-family:sans-serif; max-width:480px; margin:0 auto; padding:24px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
+              <h2 style="color:#78350f; margin-top:0;">☕ Coffee &amp; Cravings</h2>
+              <p style="color:#374151; font-size:15px;">Here is your one-time sign-in code:</p>
+              <div style="font-size:32px; font-weight:700; letter-spacing:8px; color:#1f2937; margin:20px 0; background:#fef3c7; padding:14px; text-align:center; border-radius:8px;">${otp}</div>
+              <p style="color:#6b7280; font-size:13px; line-height:1.5;">This code expires in 5 minutes. If you did not request this code, you can safely ignore this email.</p>
+            </div>
+          `
         })
       });
-      if (res.ok) return { sent: true };
+      if (res.ok) {
+        console.log(`[Email] OTP successfully sent to ${toEmail} via Resend`);
+        return { sent: true };
+      }
+      const errBody = await res.text();
+      console.warn(`[Email] Resend API error: ${errBody}`);
     } catch (e) {
-      console.error('Resend email error:', e);
+      console.error('[Email] Resend error:', e);
     }
   }
 
+  // 2. Brevo API (Free 300 emails/day = 9,000/month, 0 credit card required)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'Coffee & Cravings', email: process.env.EMAIL_FROM || 'login@coffeeandcravings.in' },
+          to: [{ email: toEmail }],
+          subject: `${otp} is your Coffee & Cravings sign-in code`,
+          htmlContent: `<div style="font-family:sans-serif; max-width:480px; margin:0 auto; padding:24px; border:1px solid #e5e7eb; border-radius:12px;"><h2 style="color:#78350f;">☕ Coffee &amp; Cravings</h2><p>Your one-time sign-in code is:</p><div style="font-size:32px; font-weight:700; letter-spacing:8px; color:#1f2937; margin:20px 0; background:#fef3c7; padding:14px; text-align:center; border-radius:8px;">${otp}</div><p style="color:#6b7280; font-size:13px;">Expires in 5 minutes.</p></div>`
+        })
+      });
+      if (res.ok) {
+        console.log(`[Email] OTP successfully sent to ${toEmail} via Brevo`);
+        return { sent: true };
+      }
+    } catch (e) {
+      console.error('[Email] Brevo error:', e);
+    }
+  }
+
+  // 3. Gmail SMTP / Custom SMTP
   if (process.env.SMTP_USER && (process.env.SMTP_PASS || process.env.GMAIL_APP_PASS)) {
     try {
       let nodemailer;
@@ -96,12 +132,13 @@ async function sendEmailOtp(toEmail, otp) {
         return { sent: true };
       }
     } catch (e) {
-      console.error('SMTP email error:', e);
+      console.error('[Email] SMTP error:', e);
     }
   }
 
-  console.log(`[Coffee & Cravings] Verification OTP for ${toEmail}: ${otp}`);
-  return { sent: false, devCode: otp };
+  // Fallback: Securely log on server console
+  console.log(`[SECURITY] 6-digit OTP for ${toEmail}: ${otp}`);
+  return { sent: false };
 }
 
 async function handleOtp(req, res) {
@@ -131,16 +168,15 @@ async function handleOtp(req, res) {
     ]);
 
     const result = await sendEmailOtp(rawEmail, otp);
-    if (result.sent) {
-      return res.json({ ok: true, message: `6-digit verification code sent to ${rawEmail}` });
-    } else {
-      return res.json({
-        ok: true,
-        devMode: true,
-        devCode: result.devCode,
-        message: `Verification code sent to ${rawEmail} (Test code: ${result.devCode})`
-      });
-    }
+    const isTest = process.env.NODE_ENV === 'test';
+
+    // NEVER expose OTP to client in production or browser UI!
+    return res.json({
+      ok: true,
+      sent: result.sent,
+      ...(isTest ? { devCode: otp } : {}),
+      message: `6-digit verification code sent to ${rawEmail}. Please check your inbox (and spam folder)!`
+    });
   }
 
   if (action === 'verify') {
@@ -266,4 +302,3 @@ module.exports = route(['GET', 'POST', 'DELETE'], async (req, res) => {
 
   throw new HttpError(404, 'Not found');
 });
-

@@ -1,4 +1,5 @@
 'use strict';
+process.env.NODE_ENV = 'test';
 process.env.SESSION_SECRET = 'x'.repeat(40);
 process.env.OWNER_PIN = '123456';
 process.env.BARISTA_PIN = '654321';

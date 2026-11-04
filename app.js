@@ -1769,7 +1769,17 @@ function setAuthStatusMsg(msg, isError = false) {
 function initGoogleAuth() {
   if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) return;
   try {
-    const clientId = window.GOOGLE_CLIENT_ID || '1047124312695-dummy.apps.googleusercontent.com';
+    const clientId = window.GOOGLE_CLIENT_ID;
+  const hasValidClient = clientId && typeof clientId === 'string' && !clientId.includes('dummy') && clientId.includes('.apps.googleusercontent.com');
+  if (!hasValidClient) {
+    const gContainer = document.getElementById('google-signin-btn-container');
+    const manualBtn = document.getElementById('google-auth-btn');
+    const divider = document.querySelector('.auth-divider');
+    if (gContainer) gContainer.style.display = 'none';
+    if (manualBtn) manualBtn.style.display = 'none';
+    if (divider) divider.style.display = 'none';
+    return;
+  }
     google.accounts.id.initialize({
       client_id: clientId,
       callback: handleGoogleAuthCredential,
@@ -1870,10 +1880,10 @@ async function sendEmailOtp() {
 
     const otpInput = document.getElementById('auth-otp-input');
     if (otpInput) {
-      otpInput.value = data.devCode || '';
+      otpInput.value = '';
       otpInput.focus();
     }
-    setAuthStatusMsg(data.message || `Code sent to ${email}! Check your inbox.`);
+    setAuthStatusMsg(data.message || `6-digit verification code sent to ${email}! Check your inbox.`);
   } catch (err) {
     setAuthStatusMsg(err.message || 'Error sending code. Please try again.', true);
   } finally {
