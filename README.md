@@ -1,44 +1,27 @@
 # Coffee & Cravings
 
-- `/`  customer site (menu, cart, table QR ordering). No staff links or staff code.
-- `/staff`  barista + owner portal. Not linked anywhere, `noindex`, PIN login checked on the server.
-- `/api`  order + staff API (Vercel Functions). Orders live in Upstash Redis, auto-expire after 48h.
+Artisan cafe & kitchen ordering website with QR table ordering, online Razorpay & UPI payments, owner portal, staff kitchen display, CRM deals, and customer authentication.
 
-## Deploy
-1. Push to GitHub (Vercel auto-deploys).
-2. Vercel -> Storage/Marketplace -> add **Upstash Redis** and connect it to this project.
-3. Set `SESSION_SECRET`, `OWNER_PIN`, `BARISTA_PIN` (see `.env.example`), then redeploy.
-4. Open `/staff`, sign in with the OWNER PIN, go to **QR Codes**, print one signed QR per table.
-   Old unsigned QR codes stop working for table orders on purpose.
+## Customer site (`/`)
+- Artisan menu with categories, dietary filters, search, and live BOGO deal tags.
+- Table ordering: QR code signs the table number (`sig`), so customers at Table 03 cannot order for Table 07.
+- Mandatory sign-in before checkout: Customers sign in via Google or Gmail 6-digit OTP to place an order, view order history, and unlock loyalty deals.
+- Cart drawer with dynamic checkout, live coupon verification, and UPI / Cash-at-counter options.
 
-## Staff access
-Give baristas only the `/staff` link and the BARISTA PIN. Lost phone / ex-employee: change `BARISTA_PIN`
-and redeploy — every existing barista session is signed out immediately. Rotating `SESSION_SECRET` signs out everyone.
-
-## Tests
-`npm test` runs the API checks (auth, lockout, signed tables, price tampering, idempotency, roles).
-
-## Online payments (Razorpay) — when you are ready
-1. Razorpay Dashboard -> API Keys: put `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` in Vercel.
-2. Dashboard -> Webhooks -> add `https://YOUR-DOMAIN/api/payments/webhook`, events `payment.captured` and `order.paid`,
-   choose a secret and put it in `RAZORPAY_WEBHOOK_SECRET`. Keep payment capture on **automatic**.
-3. Redeploy. Test in Razorpay **test mode** first. Until all three variables exist nothing changes.
-
-Flow: UPI/card order is created as `awaiting_payment` (barista cannot see it) -> gateway confirms (browser callback is
-verified by signature, webhook is the safety net) -> order becomes **PAID** and appears on the barista screen.
-"Pay at Counter" orders go straight to the barista as UNPAID.
+## Payments
+- Razorpay Checkout & dynamic UPI QR codes.
+- Webhook safety net (`/api/payments/webhook`) and signature verification.
 
 ## Owner portal (`/staff`, owner PIN)
-- **Reports:** today / 7 / 30 days. Revenue, paid orders, average order, discounts, GST, busy hours, top items, payment split, CSV download. Only PAID orders count, each exactly once.
-- **Menu:** add / edit / hide / delete products and categories. Changes reach customers immediately (images are https links for now).
-- **Deals (BOGO / Buy X Get Y):** Create promotional deals (e.g. Buy 2 Cappuccinos get 1 Fries free, or Buy 1 Get 1 Americano). Live tags show on menu and cart, and the server automatically calculates and awards free items at ₹0.
-- **Coupons:** percent or flat, minimum order, max discount, expiry date, usage limit, on/off. Discount applies before GST. Includes first-order "New customer only" welcome coupons verified by phone number.
-- **Customer CRM:** Tracks guest phone numbers, total visits, paid orders, and lifetime spend. Search customers and view individual order logs.
-- Barista PIN only sees Orders.
+- **Reports:** today / 7 / 30 days. Revenue, paid orders, average order, discounts, GST, busy hours, top items, payment split, CSV download.
+- **Menu:** add / edit / hide / delete products and categories.
+- **Deals (BOGO / Buy X Get Y):** Create promotional deals with live tags and automatic server discounting.
+- **Coupons:** percent or flat, minimum order, max discount, expiry date, usage limit.
+- **Customer CRM:** Tracks customer visits, paid orders, and lifetime spend.
 
-## Customer Accounts & Lifetime Order History (Google & Phone OTP)
-- **Sign In with Google or Mobile Phone:** Customers can sign in via 1-click Google popup or 6-digit SMS OTP (powered by Firebase Auth).
-- **Firebase Configuration:** Copy your web app config from [Firebase Console](https://console.firebase.google.com) into `firebase-config.js` (enable Google & Phone in Authentication -> Sign-in methods).
+## Customer Accounts & Lifetime Order History (100% Free Forever)
+- **Sign In with Google (1-Click):** Powered by Google Identity Services (`gsi/client`) for instant 1-tap sign-in without passwords.
+- **Gmail 6-Digit OTP:** Secure email verification code generated cryptographically and stored in Redis with 5-minute expiry. Works with Gmail SMTP or Resend (3,000 free emails/mo).
 - **Lifetime Receipts:** All items, prices, discounts, tables, and receipts are saved permanently in Redis (`cust:orders:<user>`) and never disappear.
 - **My Orders:** Live status updates for active kitchen orders (polling every 8s) + full archive of past orders with 1-tap "Re-order" to cart.
 
