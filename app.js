@@ -460,19 +460,6 @@ function renderOrderPage() {
             <span class="category-count">(${c.count})</span>
           </button>
         `).join('')}
-
-        <div class="mt-3 p-3" style="background:#fff; border:1px solid #e5e7eb; border-radius:4px; font-size:12px;">
-          <strong>📱 Table QR Ordering:</strong>
-          <p class="text-muted mt-1" style="font-size:12px; color:#666;">
-            Currently ordering for: <br/>
-            <span style="font-weight:700; color:#1a1a1a;">
-              ${currentTable > 0 ? `Table 0${currentTable}` : 'Takeaway / Counter'}
-            </span>
-          </p>
-          <button class="btn-godaddy-outline mt-2 full-width" style="padding:6px; font-size:10px;" onclick="openTablePickerModal()">
-            Switch Table
-          </button>
-        </div>
       </aside>
 
       <!-- Right Main Menu Grid -->
@@ -863,7 +850,7 @@ function renderCartCustomerState() {
   const greetEl = document.getElementById('checkout-cust-greeting');
   if (greetEl) {
     if (customerInfo && !customerInfo.isNew) {
-      greetEl.innerHTML = `<span style="color:#047857; font-weight:600;">✓ Welcome back, ${customerInfo.name || 'friend'}! (${customerInfo.orders} previous orders)</span>`;
+      greetEl.innerHTML = `<span style="color:#047857; font-weight:600;">✓ Welcome back, ${customerInfo.name || 'friend'}!</span>`;
     } else if (customerInfo && customerInfo.welcomeCoupon) {
       greetEl.innerHTML = `<span style="color:#1d4ed8; font-weight:600;">🌟 Eligible for first-order coupon: <b>${customerInfo.welcomeCoupon.code}</b></span>`;
     } else {
@@ -1352,7 +1339,7 @@ function updateTablePill() {
   const bannerBadge = document.getElementById('table-banner-badge');
 
   if (textEl) {
-    textEl.innerText = currentTable > 0 ? `Table 0${currentTable}` : 'Table: Walk-in / Takeaway';
+    textEl.innerText = currentTable > 0 ? `Table 0${currentTable} (Dine-in)` : 'Takeaway / Counter';
   }
 
   if (banner && bannerBadge) {
