@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /staff
+Disallow: /staff/
+Disallow: /api/
+
+Sitemap: https://coffeeandcravings.shop/sitemap.xml
