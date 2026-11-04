@@ -7,5 +7,8 @@
   },
   "scripts": {
     "test": "node tests/api.test.js && node tests/payments.test.js && node tests/owner.test.js && node tests/crm-deals.test.js && node tests/customer-auth.test.js"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0"
   }
 }
