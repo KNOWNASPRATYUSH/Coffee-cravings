@@ -1061,7 +1061,10 @@ function openCheckoutModal() {
       if (p) lookupCustomerInfo(p);
     };
     phoneInput.oninput = () => {
-      const p = phoneInput.value.replace(/[^0-9]/g, '');
+      phoneInput.value = phoneInput.value.replace(/[^0-9]/g, '').slice(0, 10);
+      phoneInput.style.borderColor = '';
+      phoneInput.style.boxShadow = '';
+      const p = phoneInput.value;
       if (p.length >= 10) lookupCustomerInfo(p);
     };
   }
@@ -1180,10 +1183,28 @@ async function submitFinalOrder() {
     return;
   }
 
+  const phoneEl = document.getElementById('cust-phone-input');
+  const rawPhone = (phoneEl ? phoneEl.value : (customerPhone || '')).trim();
+  const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+
+  if (!cleanPhone || cleanPhone.length !== 10) {
+    showToast('Please enter your 10-digit mobile phone number.', 'warning');
+    if (phoneEl) {
+      phoneEl.focus();
+      phoneEl.style.borderColor = '#ef4444';
+      phoneEl.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.2)';
+      phoneEl.addEventListener('input', () => {
+        phoneEl.style.borderColor = '';
+        phoneEl.style.boxShadow = '';
+      }, { once: true });
+    }
+    return;
+  }
+
   orderSubmitting = true;
 
   const custName = document.getElementById('cust-name-input')?.value.trim() || 'Guest';
-  const custPhone = document.getElementById('cust-phone-input')?.value.trim() || '';
+  const custPhone = cleanPhone;
   const specialNotes = document.getElementById('order-special-notes')?.value.trim() || '';
   if (!orderKey) orderKey = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2);
 
@@ -1219,6 +1240,19 @@ async function submitFinalOrder() {
   if (custPhone) {
     customerPhone = custPhone;
     try { localStorage.setItem('cc_cust_phone', custPhone); } catch (e) {}
+    if (currentCustomerUser && currentCustomerUser.phone !== custPhone) {
+      currentCustomerUser.phone = custPhone;
+      fetch('/api/customer/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: currentCustomerUser.uid,
+          phone: custPhone,
+          email: currentCustomerUser.email || '',
+          name: custName !== 'Guest' ? custName : (currentCustomerUser.name || '')
+        })
+      }).catch(() => {});
+    }
   }
   if (custName && custName !== 'Guest') {
     customerName = custName;

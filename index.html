@@ -324,12 +324,12 @@
         <!-- Customer Name / Phone (Optional for bill/loyalty) -->
         <div class="form-row-two mt-2">
           <div class="form-field">
-            <label>Customer Name (Optional)</label>
+            <label>Customer Name</label>
             <input type="text" id="cust-name-input" placeholder="e.g. Rahul Sharma" />
           </div>
           <div class="form-field">
-            <label>Phone Number (for Offers &amp; Bill)</label>
-            <input type="tel" id="cust-phone-input" placeholder="e.g. 9876543210" />
+            <label>Mobile Phone Number <span style="color:#ef4444; font-weight:700;">* (Required)</span></label>
+            <input type="tel" id="cust-phone-input" placeholder="10-digit mobile number" maxlength="10" inputmode="numeric" required />
             <div id="checkout-cust-greeting" style="font-size:12px; margin-top:4px;"></div>
           </div>
         </div>
