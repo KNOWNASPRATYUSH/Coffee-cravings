@@ -3,8 +3,8 @@ const crypto = require('crypto');
 const MENU = require('../menu-data.js');
 
 const IS_PROD = !!process.env.VERCEL || process.env.NODE_ENV === 'production'; // any Vercel deployment (preview too) is treated as production: no dev fallbacks
-const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || process.env.STORAGE_KV_REST_API_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.STORAGE_KV_REST_API_TOKEN; // STORAGE_ = custom prefix chosen in Vercel
 const MAX_TABLE = 12;
 const SESSION_MS = 12 * 60 * 60 * 1000;
 const ORDER_TTL_S = 48 * 60 * 60;
