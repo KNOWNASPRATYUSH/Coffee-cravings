@@ -4,4 +4,4 @@ Disallow: /staff
 Disallow: /staff/
 Disallow: /api/
 
-Sitemap: https://coffeeandcravings.shop/sitemap.xml
+Sitemap: https://www.coffeeandcravings.shop/sitemap.xml
