@@ -12,3 +12,232 @@
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(1.15); }
 }
+
+/* Customer Auth Modal (Google & Phone OTP) */
+.auth-modal-card {
+  max-width: 420px;
+  width: 90%;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.18);
+}
+.auth-modal-body {
+  padding: 24px 28px;
+}
+.auth-subtitle {
+  text-align: center;
+  color: #6b7280;
+  font-size: 13px;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+.google-auth-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #ffffff;
+  color: #374151;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.google-auth-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: #9ca3af;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
+}
+.auth-divider span {
+  padding: 0 12px;
+}
+.auth-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+.phone-input-group {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  transition: border-color 0.2s ease;
+}
+.phone-input-group:focus-within {
+  border-color: #92400e;
+}
+.country-prefix {
+  padding: 10px 14px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-weight: 600;
+  font-size: 14px;
+  border-right: 1px solid #e5e7eb;
+}
+.phone-input-group input {
+  flex: 1;
+  border: none;
+  padding: 10px 12px;
+  font-size: 15px;
+  outline: none;
+  color: #111827;
+}
+.otp-input {
+  width: 100%;
+  padding: 12px;
+  font-size: 20px;
+  letter-spacing: 8px;
+  text-align: center;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  outline: none;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
+.otp-input:focus {
+  border-color: #92400e;
+}
+.phone-submit-btn {
+  width: 100%;
+  margin-top: 12px;
+  background: #92400e;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.phone-submit-btn:hover {
+  background: #78350f;
+}
+.phone-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.auth-actions-row {
+  display: flex;
+  gap: 10px;
+}
+.auth-back-btn {
+  background: #f3f4f6;
+  color: #4b5563;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-msg {
+  margin-top: 14px;
+  font-size: 13px;
+  text-align: center;
+  min-height: 18px;
+}
+
+/* Authenticated Profile Card inside Modal */
+.auth-profile-card {
+  text-align: center;
+  padding: 16px 0 20px;
+}
+.auth-profile-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #fef3c7;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 12px;
+  overflow: hidden;
+  border: 2px solid #fde68a;
+}
+.auth-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.auth-profile-card h4 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: #111827;
+}
+.auth-profile-sub {
+  margin: 2px 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+.auth-profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.auth-view-orders-btn {
+  width: 100%;
+  background: #92400e;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-logout-btn {
+  width: 100%;
+  background: #fee2e2;
+  color: #991b1b;
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Header Account Pill */
+.account-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px !important;
+  border-radius: 20px;
+  background: #f5f5f4;
+  border: 1px solid #e7e5e4;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.account-btn:hover {
+  background: #e7e5e4;
+}

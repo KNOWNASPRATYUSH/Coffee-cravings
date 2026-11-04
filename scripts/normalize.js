@@ -5,3 +5,4 @@ for (const f of files) {
   fs.writeFileSync(f, t.replace(/\r\n/g, '\n'));
 }
 console.log('normalized', files.join(', '));
+

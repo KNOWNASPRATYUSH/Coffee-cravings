@@ -36,6 +36,12 @@ verified by signature, webhook is the safety net) -> order becomes **PAID** and 
 - **Customer CRM:** Tracks guest phone numbers, total visits, paid orders, and lifetime spend. Search customers and view individual order logs.
 - Barista PIN only sees Orders.
 
+## Customer Accounts & Lifetime Order History (Google & Phone OTP)
+- **Sign In with Google or Mobile Phone:** Customers can sign in via 1-click Google popup or 6-digit SMS OTP (powered by Firebase Auth).
+- **Firebase Configuration:** Copy your web app config from [Firebase Console](https://console.firebase.google.com) into `firebase-config.js` (enable Google & Phone in Authentication -> Sign-in methods).
+- **Lifetime Receipts:** All items, prices, discounts, tables, and receipts are saved permanently in Redis (`cust:orders:<user>`) and never disappear.
+- **My Orders:** Live status updates for active kitchen orders (polling every 8s) + full archive of past orders with 1-tap "Re-order" to cart.
+
 ## Redis usage
 Barista screens ask "anything new?" every 8 s (1 Redis command) and download orders only when something changed.
 Sales totals are kept as small daily counters, so reports stay fast and orders can expire after 48 h.

@@ -20,6 +20,7 @@ let activeDeals = []; // promotional Buy X Get Y Free rules
 let customerInfo = null; // customer CRM profile from /api/customer
 let customerPhone = '';
 let customerName = '';
+let currentCustomerUser = null; // authenticated customer session from /api/customer/session
 
 // Same rules as the server: discount first, GST on the discounted amount.
 function calcTotals(subtotal) {
@@ -1022,8 +1023,10 @@ function openCheckoutModal() {
 
   const phoneInput = document.getElementById('cust-phone-input');
   const nameInput = document.getElementById('cust-name-input');
-  if (phoneInput && customerPhone) phoneInput.value = customerPhone;
-  if (nameInput && customerName) nameInput.value = customerName;
+  const activePhone = customerPhone || (currentCustomerUser && currentCustomerUser.phone) || '';
+  const activeName = customerName || (currentCustomerUser && currentCustomerUser.name) || '';
+  if (phoneInput && activePhone) phoneInput.value = activePhone;
+  if (nameInput && activeName) nameInput.value = activeName;
   if (phoneInput) {
     phoneInput.onchange = () => {
       const p = phoneInput.value.trim();
@@ -1399,7 +1402,7 @@ function toggleMobileMenu(force) {
 }
 
 // =============================================================================
-// 10. MY ORDERS — LIVE ORDER TRACKER
+// 10. MY ORDERS — LIVE ORDER TRACKER & LIFETIME ORDER RECEIPTS
 // =============================================================================
 const ORDER_STATUS_ICON = {
   awaiting_payment: '⏳',
@@ -1417,31 +1420,58 @@ const ORDER_STATUS_COLOR = {
 };
 
 function renderMyOrdersPage() {
+  const isLoggedIn = !!currentCustomerUser;
+  const userHeaderHtml = isLoggedIn ? `
+    <div style="background:#fff; border-radius:14px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 2px 10px rgba(0,0,0,0.06); border:1px solid #f3f4f6;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="width:46px; height:46px; border-radius:50%; background:#fef3c7; color:#92400e; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; overflow:hidden;">
+          ${currentCustomerUser.photoUrl ? `<img src="${currentCustomerUser.photoUrl}" style="width:100%; height:100%; object-fit:cover;" />` : (currentCustomerUser.name ? currentCustomerUser.name[0].toUpperCase() : '👤')}
+        </div>
+        <div>
+          <div style="font-weight:700; color:#1f2937; font-size:15px;">${currentCustomerUser.name}</div>
+          <div style="font-size:12px; color:#6b7280;">${currentCustomerUser.email || (currentCustomerUser.phone ? '+91 ' + currentCustomerUser.phone : 'Signed In')}</div>
+        </div>
+      </div>
+      <button onclick="openCustomerAuthModal()" style="font-size:12px; color:#92400e; background:#fef3c7; border:none; border-radius:8px; padding:6px 12px; cursor:pointer; font-weight:600;">Account ▾</button>
+    </div>
+  ` : `
+    <div style="background:#fef3c7; border:1px solid #fde68a; border-radius:12px; padding:12px 16px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <div style="font-size:13px; color:#92400e;">
+        <strong>Want to save &amp; view your orders anytime?</strong> Sign in with Google or Phone.
+      </div>
+      <button onclick="openCustomerAuthModal()" style="background:#92400e; color:#fff; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">Sign In</button>
+    </div>
+  `;
+
   return `
     <section class="my-orders-section">
       <div class="my-orders-container">
-        <h2 class="section-title" style="text-align:center; margin-bottom:8px;">📦 My Orders</h2>
-        <p style="text-align:center; color:#6b7280; margin-bottom:24px; font-size:14px;">Track your live order status in real time</p>
+        <h2 class="section-title" style="text-align:center; margin-bottom:4px;">📦 My Orders</h2>
+        <p style="text-align:center; color:#6b7280; margin-bottom:20px; font-size:14px;">Live updates &amp; complete order receipts</p>
 
-        <div id="my-orders-phone-form" style="${customerPhone ? 'display:none' : ''}">
+        ${userHeaderHtml}
+
+        <div id="my-orders-phone-form" style="${(isLoggedIn || customerPhone) ? 'display:none' : ''}">
           <div style="max-width:360px; margin:0 auto; background:#fff; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-            <label style="display:block; font-size:14px; font-weight:600; margin-bottom:8px; color:#374151;">📱 Enter your phone number</label>
+            <label style="display:block; font-size:14px; font-weight:600; margin-bottom:8px; color:#374151;">📱 Track as Guest with Phone</label>
             <input id="tracker-phone-input" type="tel" inputmode="numeric" placeholder="e.g. 9876543210"
               style="width:100%; border:1.5px solid #d1d5db; border-radius:8px; padding:10px 14px; font-size:15px; outline:none; box-sizing:border-box;" />
             <button onclick="setTrackerPhone()" style="width:100%; margin-top:12px; background:#92400e; color:#fff; border:none; border-radius:8px; padding:12px; font-size:15px; font-weight:600; cursor:pointer;">Track My Orders</button>
           </div>
         </div>
 
-        <div id="my-orders-list" style="${customerPhone ? '' : 'display:none'}">
-          <div style="text-align:center; margin-bottom:16px;">
-            <span style="font-size:13px; color:#6b7280;">Tracking orders for <strong id="tracker-phone-display"></strong></span>
-            <button onclick="clearTrackerPhone()" style="margin-left:12px; font-size:12px; color:#92400e; background:none; border:none; cursor:pointer; text-decoration:underline;">Change</button>
-          </div>
-          <div id="my-orders-cards" style="max-width:520px; margin:0 auto;">
+        <div id="my-orders-list" style="${(isLoggedIn || customerPhone) ? '' : 'display:none'}">
+          ${!isLoggedIn && customerPhone ? `
+            <div style="text-align:center; margin-bottom:16px;">
+              <span style="font-size:13px; color:#6b7280;">Tracking orders for <strong id="tracker-phone-display">${customerPhone}</strong></span>
+              <button onclick="clearTrackerPhone()" style="margin-left:12px; font-size:12px; color:#92400e; background:none; border:none; cursor:pointer; text-decoration:underline;">Change</button>
+            </div>
+          ` : ''}
+          <div id="my-orders-cards" style="max-width:540px; margin:0 auto;">
             <div style="text-align:center; padding:40px; color:#9ca3af;">Loading your orders…</div>
           </div>
           <div style="text-align:center; margin-top:16px;">
-            <span id="my-orders-refresh-note" style="font-size:12px; color:#9ca3af;">Auto-refreshes every 8 seconds</span>
+            <span id="my-orders-refresh-note" style="font-size:12px; color:#9ca3af;">Auto-refreshes every 8 seconds for active orders</span>
           </div>
         </div>
       </div>
@@ -1470,12 +1500,15 @@ function clearTrackerPhone() {
 
 async function loadAndRenderMyOrders() {
   const phoneEl = document.getElementById('tracker-phone-display');
-  if (phoneEl) phoneEl.textContent = customerPhone;
+  if (phoneEl && customerPhone) phoneEl.textContent = customerPhone;
   const container = document.getElementById('my-orders-cards');
-  if (!container || !customerPhone) return;
+  if (!container) return;
+
+  const url = currentCustomerUser ? '/api/my-orders' : ('/api/my-orders?phone=' + encodeURIComponent(customerPhone || ''));
+  if (!currentCustomerUser && !customerPhone) return;
 
   try {
-    const r = await fetch('/api/my-orders?phone=' + encodeURIComponent(customerPhone));
+    const r = await fetch(url);
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
       container.innerHTML = `<div style="text-align:center; padding:30px; color:#b91c1c;">${d.error || 'Could not load orders.'}</div>`;
@@ -1487,21 +1520,22 @@ async function loadAndRenderMyOrders() {
       container.innerHTML = `
         <div style="text-align:center; padding:40px; color:#9ca3af;">
           <div style="font-size:40px; margin-bottom:12px;">☕</div>
-          <p style="margin:0 0 8px;">No orders found for this number.</p>
-          <p style="margin:0; font-size:13px;">Orders placed with this phone appear here automatically.</p>
+          <p style="margin:0 0 8px; font-weight:600; color:#374151;">No past orders found.</p>
+          <p style="margin:0; font-size:13px;">When you place an order, your full receipt &amp; status appear here.</p>
           <button onclick="navigateTo('order')" style="margin-top:16px; background:#92400e; color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:14px; font-weight:600; cursor:pointer;">Order Now</button>
         </div>`;
       return;
     }
 
-    const allDone = orders.every(o => o.status === 'completed' || o.expired);
+    const hasActiveOrders = orders.some(o => !['completed'].includes(o.status) && !o.expired);
 
     container.innerHTML = orders.map(o => {
       const icon = ORDER_STATUS_ICON[o.status] || '•';
       const color = ORDER_STATUS_COLOR[o.status] || '#6b7280';
       const isActive = !['completed'].includes(o.status) && !o.expired;
-      const itemsHtml = (o.items || []).map(it =>
-        `<div style="display:flex; justify-content:space-between; font-size:13px; color:#374151; margin-bottom:3px;">
+      const items = Array.isArray(o.items) ? o.items : [];
+      const itemsHtml = items.map(it =>
+        `<div style="display:flex; justify-content:space-between; font-size:13px; color:#374151; margin-bottom:4px;">
           <span>${it.qty}× ${it.name}</span>
           <span>₹${(it.price * it.qty).toFixed(2)}</span>
         </div>`
@@ -1513,8 +1547,11 @@ async function loadAndRenderMyOrders() {
           ? `<span style="background:#fef3c7; color:#92400e; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">⏳ Pending</span>`
           : `<span style="background:#fee2e2; color:#991b1b; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">💵 Pay at counter</span>`;
 
-      // animated pulse for active orders
       const pulseStyle = isActive ? 'animation:pulse-dot 1.4s infinite;' : '';
+      const encodedItems = encodeURIComponent(JSON.stringify(items));
+      const formattedDate = o.createdAt ? new Date(o.createdAt).toLocaleString('en-IN', {
+        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      }) : '';
 
       return `
         <div style="background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,0.08); margin-bottom:16px; overflow:hidden; border-left:4px solid ${color};">
@@ -1527,31 +1564,41 @@ async function loadAndRenderMyOrders() {
               ${payBadge}
             </div>
           </div>
-          <div style="padding:12px 16px; background:#fafaf9;">
+          <div style="padding:12px 16px; background:#fafaf9; border-bottom:1px solid #f3f4f6;">
             ${itemsHtml || '<span style="color:#9ca3af; font-size:13px;">Items not available</span>'}
+            ${o.discount > 0 ? `
+              <div style="display:flex; justify-content:space-between; font-size:12px; color:#059669; margin-top:4px; border-top:1px dashed #e5e7eb; padding-top:4px;">
+                <span>Discount applied</span>
+                <span>-₹${Number(o.discount).toFixed(2)}</span>
+              </div>
+            ` : ''}
           </div>
           <div style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:22px; ${pulseStyle}">${icon}</span>
               <div>
                 <div style="font-weight:700; color:${color}; font-size:14px;">${o.statusLabel || o.status}</div>
-                ${isActive ? '<div style="font-size:11px; color:#9ca3af;">Live update</div>' : ''}
+                <div style="font-size:11px; color:#9ca3af;">${formattedDate}</div>
               </div>
             </div>
-            <div style="text-align:right;">
-              <div style="font-weight:700; color:#1f2937; font-size:15px;">₹${Number(o.total).toFixed(2)}</div>
-              <div style="font-size:11px; color:#9ca3af;">${o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}) : ''}</div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="text-align:right;">
+                <div style="font-weight:700; color:#1f2937; font-size:16px;">₹${Number(o.total).toFixed(2)}</div>
+              </div>
+              ${items.length ? `
+                <button onclick="reorderItems('${encodedItems}')" style="background:#f5f5f4; border:1px solid #d6d3d1; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:600; color:#44403c; cursor:pointer;" title="Add these items to cart again">Re-order</button>
+              ` : ''}
             </div>
           </div>
         </div>`;
     }).join('');
 
-    // If all done, slow down / stop polling
-    if (allDone && myOrdersPoller) {
+    // If no active orders, stop aggressive polling
+    if (!hasActiveOrders && myOrdersPoller) {
       clearInterval(myOrdersPoller);
       myOrdersPoller = null;
       const note = document.getElementById('my-orders-refresh-note');
-      if (note) note.textContent = 'All orders completed ✓';
+      if (note) note.textContent = 'All orders up to date ✓';
     }
   } catch (e) {
     const container2 = document.getElementById('my-orders-cards');
@@ -1560,10 +1607,300 @@ async function loadAndRenderMyOrders() {
 }
 
 function startMyOrdersPolling() {
-  if (!customerPhone) return;
+  if (!currentCustomerUser && !customerPhone) return;
   loadAndRenderMyOrders(); // immediate load
   if (myOrdersPoller) clearInterval(myOrdersPoller);
   myOrdersPoller = setInterval(loadAndRenderMyOrders, 8000);
+}
+
+// =============================================================================
+// CUSTOMER AUTHENTICATION (Firebase Google & Phone OTP)
+// =============================================================================
+let recaptchaVerifier = null;
+let confirmationResult = null;
+
+async function checkCustomerSession() {
+  try {
+    const r = await fetch('/api/customer/session');
+    if (r.ok) {
+      const data = await r.json();
+      if (data.loggedIn && data.user) {
+        currentCustomerUser = data.user;
+        if (data.user.phone && !customerPhone) {
+          customerPhone = data.user.phone;
+        }
+        if (data.user.name && !customerName) {
+          customerName = data.user.name;
+        }
+      } else {
+        currentCustomerUser = null;
+      }
+    }
+  } catch (e) {}
+  updateCustomerHeaderUI();
+}
+
+function updateCustomerHeaderUI() {
+  const nameEl = document.getElementById('customer-btn-name');
+  const avatarEl = document.getElementById('customer-btn-avatar');
+  const mobileLink = document.querySelector('#mobile-auth-item a');
+  if (currentCustomerUser) {
+    if (nameEl) {
+      nameEl.style.display = 'inline';
+      nameEl.textContent = currentCustomerUser.name ? currentCustomerUser.name.split(' ')[0] : 'Account';
+    }
+    if (avatarEl) {
+      if (currentCustomerUser.photoUrl) {
+        avatarEl.innerHTML = `<img src="${currentCustomerUser.photoUrl}" style="width:20px; height:20px; border-radius:50%; object-fit:cover;" />`;
+      } else {
+        avatarEl.innerHTML = `<span style="font-weight:700; font-size:13px; color:#92400e;">${(currentCustomerUser.name || 'U')[0].toUpperCase()}</span>`;
+      }
+    }
+    if (mobileLink) {
+      mobileLink.textContent = `👤 ${currentCustomerUser.name || 'My Account'}`;
+    }
+  } else {
+    if (nameEl) nameEl.style.display = 'none';
+    if (avatarEl) {
+      avatarEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    }
+    if (mobileLink) {
+      mobileLink.textContent = '👤 Sign In / Account';
+    }
+  }
+}
+
+function handleCustomerAccountClick() {
+  openCustomerAuthModal();
+}
+
+function openCustomerAuthModal() {
+  const modal = document.getElementById('customer-auth-modal');
+  if (!modal) return;
+  const unauthView = document.getElementById('auth-unauthenticated-view');
+  const authView = document.getElementById('auth-authenticated-view');
+  const titleEl = document.getElementById('auth-modal-title');
+  const msgEl = document.getElementById('auth-status-msg');
+  if (msgEl) msgEl.innerText = '';
+
+  if (currentCustomerUser) {
+    if (titleEl) titleEl.innerText = 'My Account';
+    if (unauthView) unauthView.style.display = 'none';
+    if (authView) authView.style.display = 'block';
+    const nameEl = document.getElementById('auth-profile-name');
+    const emailEl = document.getElementById('auth-profile-email');
+    const phoneEl = document.getElementById('auth-profile-phone');
+    const avatarEl = document.getElementById('auth-profile-avatar');
+    if (nameEl) nameEl.textContent = currentCustomerUser.name || 'Customer';
+    if (emailEl) emailEl.textContent = currentCustomerUser.email || '';
+    if (phoneEl) phoneEl.textContent = currentCustomerUser.phone ? `+91 ${currentCustomerUser.phone}` : '';
+    if (avatarEl) {
+      if (currentCustomerUser.photoUrl) {
+        avatarEl.innerHTML = `<img src="${currentCustomerUser.photoUrl}" style="width:100%; height:100%; object-fit:cover;" />`;
+      } else {
+        avatarEl.textContent = (currentCustomerUser.name || 'U')[0].toUpperCase();
+      }
+    }
+  } else {
+    if (titleEl) titleEl.innerText = 'Sign In to Coffee & Cravings';
+    if (unauthView) unauthView.style.display = 'block';
+    if (authView) authView.style.display = 'none';
+    resetPhoneAuthStep();
+  }
+  modal.classList.add('open');
+}
+
+function closeCustomerAuthModal() {
+  const modal = document.getElementById('customer-auth-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function setAuthStatusMsg(msg, isError = false) {
+  const el = document.getElementById('auth-status-msg');
+  if (el) {
+    el.style.color = isError ? '#b91c1c' : '#059669';
+    el.innerText = msg;
+  }
+}
+
+function initFirebase() {
+  if (typeof firebase === 'undefined') return false;
+  if (!firebase.apps.length) {
+    if (!window.isFirebaseConfigured || !window.isFirebaseConfigured()) return false;
+    firebase.initializeApp(window.FIREBASE_CONFIG);
+  }
+  return true;
+}
+
+async function signInWithGoogle() {
+  setAuthStatusMsg('Connecting with Google…');
+  if (!initFirebase()) {
+    setAuthStatusMsg('Firebase keys not set in firebase-config.js yet.', true);
+    promptDemoLogin('Google');
+    return;
+  }
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const res = await firebase.auth().signInWithPopup(provider);
+    const u = res.user;
+    const idToken = await u.getIdToken();
+    await handleLoginSuccess({
+      uid: u.uid,
+      name: u.displayName,
+      email: u.email,
+      phone: u.phoneNumber,
+      photoUrl: u.photoURL,
+      idToken
+    });
+  } catch (err) {
+    setAuthStatusMsg(err.message || 'Google sign-in cancelled or failed.', true);
+  }
+}
+
+async function sendPhoneOtp() {
+  const input = document.getElementById('auth-phone-input');
+  const phone = (input ? input.value : '').replace(/[^0-9]/g, '').slice(-10);
+  if (phone.length !== 10) {
+    setAuthStatusMsg('Please enter a valid 10-digit mobile number.', true);
+    return;
+  }
+  setAuthStatusMsg('Sending OTP…');
+  if (!initFirebase()) {
+    setAuthStatusMsg('Firebase keys not set in firebase-config.js yet.', true);
+    promptDemoLogin('Phone', phone);
+    return;
+  }
+  try {
+    if (!recaptchaVerifier) {
+      recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        size: 'invisible'
+      });
+    }
+    confirmationResult = await firebase.auth().signInWithPhoneNumber('+91' + phone, recaptchaVerifier);
+    document.getElementById('phone-auth-step1').style.display = 'none';
+    document.getElementById('phone-auth-step2').style.display = 'block';
+    setAuthStatusMsg(`OTP sent to +91 ${phone}! Check SMS.`);
+  } catch (err) {
+    setAuthStatusMsg(err.message || 'Could not send OTP.', true);
+  }
+}
+
+async function verifyPhoneOtp() {
+  const input = document.getElementById('auth-otp-input');
+  const otp = (input ? input.value : '').trim();
+  if (otp.length < 6) {
+    setAuthStatusMsg('Please enter the 6-digit OTP received via SMS.', true);
+    return;
+  }
+  setAuthStatusMsg('Verifying code…');
+  try {
+    const res = await confirmationResult.confirm(otp);
+    const u = res.user;
+    const idToken = await u.getIdToken();
+    await handleLoginSuccess({
+      uid: u.uid,
+      name: u.displayName || 'Guest',
+      phone: u.phoneNumber,
+      email: u.email,
+      idToken
+    });
+  } catch (err) {
+    setAuthStatusMsg(err.message || 'Invalid or expired OTP. Please try again.', true);
+  }
+}
+
+function resetPhoneAuthStep() {
+  const s1 = document.getElementById('phone-auth-step1');
+  const s2 = document.getElementById('phone-auth-step2');
+  if (s1) s1.style.display = 'block';
+  if (s2) s2.style.display = 'none';
+  const otpInput = document.getElementById('auth-otp-input');
+  if (otpInput) otpInput.value = '';
+}
+
+async function promptDemoLogin(type, phoneVal = '') {
+  const testName = prompt(`Firebase keys are not configured yet in firebase-config.js.\nEnter your name to test ${type} Sign-In:`, 'Pratyush');
+  if (!testName) return;
+  const demoPhone = phoneVal || prompt('Enter phone number for order tracking:', '9876543210') || '9876543210';
+  const demoUid = 'demo-' + demoPhone;
+  await handleLoginSuccess({
+    uid: demoUid,
+    name: testName,
+    email: `${testName.toLowerCase().replace(/[^a-z0-9]/g, '')}@gmail.com`,
+    phone: demoPhone
+  });
+}
+
+async function handleLoginSuccess(payload) {
+  try {
+    const r = await fetch('/api/customer/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || 'Login failed.');
+    }
+    const data = await r.json();
+    currentCustomerUser = data.user;
+    if (data.user.phone) {
+      customerPhone = data.user.phone;
+      try { localStorage.setItem('cc_cust_phone', customerPhone); } catch (e) {}
+    }
+    if (data.user.name) {
+      customerName = data.user.name;
+      try { localStorage.setItem('cc_cust_name', customerName); } catch (e) {}
+    }
+    updateCustomerHeaderUI();
+    closeCustomerAuthModal();
+    showToast(`Welcome, ${currentCustomerUser.name || 'Friend'}!`, 'success');
+    if (currentView === 'my-orders') {
+      navigateTo('my-orders');
+    }
+  } catch (err) {
+    setAuthStatusMsg(err.message || 'Server error during sign in.', true);
+  }
+}
+
+async function logoutCustomer() {
+  try {
+    await fetch('/api/customer/session', { method: 'DELETE' });
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+      await firebase.auth().signOut().catch(() => {});
+    }
+  } catch (e) {}
+  currentCustomerUser = null;
+  customerPhone = '';
+  try { localStorage.removeItem('cc_cust_phone'); } catch (e) {}
+  updateCustomerHeaderUI();
+  closeCustomerAuthModal();
+  showToast('You have been signed out.', 'success');
+  if (currentView === 'my-orders') {
+    navigateTo('my-orders');
+  }
+}
+
+function reorderItems(itemsJson) {
+  try {
+    const items = typeof itemsJson === 'string' ? JSON.parse(decodeURIComponent(itemsJson)) : itemsJson;
+    if (!Array.isArray(items) || !items.length) return;
+    for (const it of items) {
+      if (it.isFree) continue; // skip promotional freebies
+      const existing = cart.find(c => c.id === it.id);
+      if (existing) {
+        existing.qty += it.qty;
+      } else {
+        cart.push({ id: it.id, qty: it.qty });
+      }
+    }
+    saveCart();
+    updateCartBadge();
+    showToast('Items added to your cart!', 'success');
+    navigateTo('order');
+  } catch (e) {
+    showToast('Could not reorder items.', 'error');
+  }
 }
 
 // Toast System
@@ -1612,6 +1949,7 @@ async function loadLiveMenu() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   initStorage();
+  await checkCustomerSession();
   await loadLiveMenu();
   checkCookiesAccepted();
   updateCartBadge();

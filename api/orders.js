@@ -1,5 +1,5 @@
 'use strict';
-const { HttpError, cmd, pipe, toObj, route, clientIp, tableSigOk, MAX_TABLE, ORDER_TTL_S } = require('./_lib');
+const { HttpError, cmd, pipe, toObj, route, clientIp, tableSigOk, customerOf, MAX_TABLE, ORDER_TTL_S } = require('./_lib');
 const { text, loadMenu, loadDeals, applyDealsToCart, cleanCode, checkCoupon, cleanPhone, recordCustomerOrder, recordCouponUsed, bump } = require('./_shop');
 const pay = require('./_pay');
 
@@ -35,7 +35,9 @@ module.exports = route(['POST'], async (req, res) => {
   if (!Number.isInteger(table) || table < 0 || table > MAX_TABLE) throw new HttpError(400, 'Invalid table.');
   if (table > 0 && !tableSigOk(table, b.sig)) throw new HttpError(400, 'Please scan the QR code on your table to order for a table, or order as takeaway.');
 
-  const phone = text(b.phone, 15);
+  const loggedCust = customerOf(req);
+
+  const phone = text(b.phone || (loggedCust ? loggedCust.phone : ''), 15);
   if (phone && !/^[0-9+\- ]{6,15}$/.test(phone)) throw new HttpError(400, 'Please enter a valid phone number.');
 
   // idempotency: the same checkout can never create two orders (double tap / retry)
@@ -69,8 +71,9 @@ module.exports = route(['POST'], async (req, res) => {
     const totalP = subtotalP - discountP + taxP;
 
     const seq = await cmd('INCR', 'seq:order');
+    const custName = text(b.customerName, 60) || (loggedCust ? loggedCust.name : '') || 'Guest';
     const order = {
-      id: 'CC-' + (1000 + seq), table, customerName: text(b.customerName, 60) || 'Guest', phone,
+      id: 'CC-' + (1000 + seq), table, customerName: custName, phone,
       paymentMethod: b.paymentMethod === 'digital' ? 'digital' : 'counter', specialNotes: text(b.specialNotes, 300),
       items, subtotal: subtotalP / 100, discount: discountP / 100, couponCode, tax: taxP / 100, total: totalP / 100,
       dealsApplied: freebies.map(f => f.dealId), createdAt: new Date().toISOString()
@@ -98,10 +101,11 @@ module.exports = route(['POST'], async (req, res) => {
     }
     await pipe(writes);
 
-    // Record customer order in customer database
-    if (phone) {
-      await recordCustomerOrder(phone, order.customerName, order.id, totalP, false);
-      if (couponCode) await recordCouponUsed(phone, couponCode, order.id);
+    // Record customer order in customer database (with full permanent receipt)
+    const custUid = loggedCust ? loggedCust.uid : '';
+    if (phone || custUid) {
+      await recordCustomerOrder(phone, order.customerName, order.id, totalP, false, order, custUid);
+      if (couponCode && phone) await recordCouponUsed(phone, couponCode, order.id);
     }
 
     if (!online) await bump();

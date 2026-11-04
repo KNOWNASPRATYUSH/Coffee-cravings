@@ -196,23 +196,64 @@ async function lookupCustomer(rawPhone) {
   };
 }
 
-async function recordCustomerOrder(phone, name, orderId, totalP, isPaid) {
+async function recordCustomerOrder(phone, name, orderId, totalP, isPaid, orderDetails = null, customerUid = '') {
   const p = cleanPhone(phone);
-  if (!p || p.length < 6) return;
+  if (!p && !customerUid) return;
   const now = new Date().toISOString();
-  const key = 'customer:' + p;
-  const existing = toObj(await cmd('HGETALL', key));
-  const firstSeen = existing.firstSeen || now;
-  const c = [
-    ['HSET', key, 'phone', p, 'name', text(name, 60) || existing.name || 'Guest', 'lastSeen', now, 'firstSeen', firstSeen],
-    ['HINCRBY', key, 'orders', 1],
-    ['ZADD', 'customers', Date.now(), p],
-    ['HSET', 'cust:orders:' + p, orderId, JSON.stringify({ id: orderId, at: now, total: totalP / 100, isPaid })]
-  ];
-  if (isPaid) {
-    c.push(['HINCRBY', key, 'paidOrders', 1], ['HINCRBY', key, 'totalSpendP', totalP]);
+
+  // Full permanent order receipt
+  const receipt = {
+    id: orderId,
+    at: now,
+    total: totalP / 100,
+    isPaid: !!isPaid,
+    ...(orderDetails ? {
+      items: orderDetails.items || [],
+      subtotal: orderDetails.subtotal,
+      discount: orderDetails.discount,
+      couponCode: orderDetails.couponCode,
+      tax: orderDetails.tax,
+      table: orderDetails.table,
+      paymentMethod: orderDetails.paymentMethod,
+      dealsApplied: orderDetails.dealsApplied
+    } : {})
+  };
+  const receiptStr = JSON.stringify(receipt);
+
+  const c = [];
+  if (p && p.length >= 6) {
+    const key = 'customer:' + p;
+    const existing = toObj(await cmd('HGETALL', key));
+    const firstSeen = existing.firstSeen || now;
+    c.push(
+      ['HSET', key, 'phone', p, 'name', text(name, 60) || existing.name || 'Guest', 'lastSeen', now, 'firstSeen', firstSeen],
+      ['HINCRBY', key, 'orders', 1],
+      ['ZADD', 'customers', Date.now(), p],
+      ['HSET', 'cust:orders:' + p, orderId, receiptStr]
+    );
+    if (isPaid) {
+      c.push(['HINCRBY', key, 'paidOrders', 1], ['HINCRBY', key, 'totalSpendP', totalP]);
+    }
+    if (customerUid) {
+      c.push(
+        ['SET', 'cust:phone2uid:' + p, customerUid],
+        ['SET', 'cust:uid2phone:' + customerUid, p]
+      );
+    }
   }
-  await pipe(c);
+
+  if (customerUid) {
+    const ukey = 'cust:user:' + customerUid;
+    c.push(
+      ['HINCRBY', ukey, 'orders', 1],
+      ['HSET', 'cust:orders:uid:' + customerUid, orderId, receiptStr]
+    );
+    if (isPaid) {
+      c.push(['HINCRBY', ukey, 'paidOrders', 1], ['HINCRBY', ukey, 'totalSpendP', totalP]);
+    }
+  }
+
+  if (c.length) await pipe(c);
 }
 
 async function recordCustomerPayment(phone, orderId, totalP) {
@@ -227,6 +268,14 @@ async function recordCustomerPayment(phone, orderId, totalP) {
   if (orderRaw) {
     const o = parse(orderRaw);
     if (o) { o.isPaid = true; c.push(['HSET', 'cust:orders:' + p, orderId, JSON.stringify(o)]); }
+  }
+  const uid = await cmd('GET', 'cust:phone2uid:' + p);
+  if (uid) {
+    const uidRaw = await cmd('HGET', 'cust:orders:uid:' + uid, orderId);
+    if (uidRaw) {
+      const uo = parse(uidRaw);
+      if (uo) { uo.isPaid = true; c.push(['HSET', 'cust:orders:uid:' + uid, orderId, JSON.stringify(uo)]); }
+    }
   }
   await pipe(c);
 }
@@ -244,11 +293,82 @@ async function listCustomers(start = 0, stop = 99) {
   }));
 }
 
-async function getCustomerOrders(phone) {
-  const p = cleanPhone(phone);
-  if (!p) return [];
-  const rawMap = toObj(await cmd('HGETALL', 'cust:orders:' + p));
+async function getCustomerOrders(identifier) {
+  if (!identifier) return [];
+  const p = cleanPhone(identifier);
+  let rawMap = {};
+  if (p && p.length >= 6) {
+    rawMap = toObj(await cmd('HGETALL', 'cust:orders:' + p));
+    const uid = await cmd('GET', 'cust:phone2uid:' + p);
+    if (uid) {
+      const uidMap = toObj(await cmd('HGETALL', 'cust:orders:uid:' + uid));
+      rawMap = { ...uidMap, ...rawMap };
+    }
+  } else {
+    rawMap = toObj(await cmd('HGETALL', 'cust:orders:uid:' + identifier));
+    const linkedPhone = await cmd('GET', 'cust:uid2phone:' + identifier);
+    if (linkedPhone) {
+      const phoneMap = toObj(await cmd('HGETALL', 'cust:orders:' + linkedPhone));
+      rawMap = { ...phoneMap, ...rawMap };
+    }
+  }
   return Object.values(rawMap).map(parse).filter(Boolean).sort((a, b) => new Date(b.at) - new Date(a.at));
+}
+
+async function upsertCustomerUser({ uid, email, phone, name, photoUrl }) {
+  if (!uid) return null;
+  const now = new Date().toISOString();
+  const ukey = 'cust:user:' + uid;
+  const existing = toObj(await cmd('HGETALL', ukey));
+  const cleanP = cleanPhone(phone);
+  const cleanE = String(email || '').trim().toLowerCase();
+  const cleanN = text(name, 60) || existing.name || 'Coffee Lover';
+  const cleanPhoto = String(photoUrl || '').trim();
+
+  const c = [
+    ['HSET', ukey,
+      'uid', uid,
+      'name', cleanN,
+      'email', cleanE || existing.email || '',
+      'phone', cleanP || existing.phone || '',
+      'photoUrl', cleanPhoto || existing.photoUrl || '',
+      'lastSeen', now,
+      'firstSeen', existing.firstSeen || now
+    ],
+    ['ZADD', 'customers:users', Date.now(), uid]
+  ];
+  if (cleanP && cleanP.length >= 6) {
+    c.push(
+      ['SET', 'cust:phone2uid:' + cleanP, uid],
+      ['SET', 'cust:uid2phone:' + uid, cleanP]
+    );
+  }
+  if (cleanE) {
+    c.push(['SET', 'cust:email2uid:' + cleanE, uid]);
+  }
+  await pipe(c);
+  return {
+    uid,
+    name: cleanN,
+    email: cleanE || existing.email || '',
+    phone: cleanP || existing.phone || '',
+    photoUrl: cleanPhoto || existing.photoUrl || ''
+  };
+}
+
+async function getCustomerUser(uid) {
+  if (!uid) return null;
+  const raw = toObj(await cmd('HGETALL', 'cust:user:' + uid));
+  if (!raw || !raw.uid) return null;
+  return {
+    uid: raw.uid,
+    name: raw.name || '',
+    email: raw.email || '',
+    phone: raw.phone || '',
+    photoUrl: raw.photoUrl || '',
+    firstSeen: raw.firstSeen || '',
+    lastSeen: raw.lastSeen || ''
+  };
 }
 
 async function recordCouponUsed(phone, code, orderId) {
@@ -289,5 +409,6 @@ module.exports = {
   cleanCoupon, cleanCode, checkCoupon,
   cleanPhone, lookupCustomer, recordCustomerOrder, recordCustomerPayment, listCustomers, getCustomerOrders,
   recordCouponUsed, getCustomerCoupons,
+  upsertCustomerUser, getCustomerUser,
   bump, recordSale
 };

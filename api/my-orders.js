@@ -1,7 +1,8 @@
 'use strict';
-// Public endpoint: GET /api/my-orders?phone=<phone>
-// Returns the customer's recent orders with live status from Redis.
-const { HttpError, cmd, pipe, toObj, route, clientIp } = require('./_lib');
+// Customer Orders endpoint: GET /api/my-orders
+// Returns lifetime orders with live status from Redis when active,
+// or the permanent stored receipt when older.
+const { HttpError, cmd, pipe, toObj, route, clientIp, customerOf } = require('./_lib');
 const { cleanPhone, getCustomerOrders } = require('./_shop');
 
 const parse = (raw) => { try { return raw ? JSON.parse(raw) : null; } catch (e) { return null; } };
@@ -16,10 +17,14 @@ const STATUS_LABEL = {
 
 module.exports = route(['GET'], async (req, res) => {
   const url = new URL(req.url, 'http://x');
-  const phone = cleanPhone(url.searchParams.get('phone'));
+  const loggedCust = customerOf(req);
+  const paramPhone = cleanPhone(url.searchParams.get('phone'));
 
-  if (!phone || phone.length < 6) {
-    throw new HttpError(400, 'Valid phone number is required.');
+  // Use authenticated customer UID/phone, or fallback to query phone
+  const identifier = (loggedCust && (loggedCust.uid || loggedCust.phone)) || paramPhone;
+
+  if (!identifier || identifier.length < 3) {
+    throw new HttpError(400, 'Valid phone number or login is required.');
   }
 
   // Rate limit: 60 requests per 10 minutes per IP
@@ -27,25 +32,26 @@ module.exports = route(['GET'], async (req, res) => {
   const [n] = await pipe([['INCR', rlKey], ['EXPIRE', rlKey, 600, 'NX']]);
   if (n > 60) throw new HttpError(429, 'Too many requests. Please wait a few minutes.');
 
-  // Get the customer's stored order records
-  const storedOrders = await getCustomerOrders(phone);
+  // Get the customer's permanent order records
+  const storedOrders = await getCustomerOrders(identifier);
   if (!storedOrders.length) return res.json({ orders: [] });
 
-  // Fetch live status for each order from order:<id> hash
+  // Fetch live status for active orders from order:<id> hash
   const liveResults = await pipe(storedOrders.map(o => ['HGETALL', 'order:' + o.id]));
 
   const orders = storedOrders.map((stored, i) => {
     const liveRaw = toObj(liveResults[i]);
     const liveData = liveRaw.data ? parse(liveRaw.data) : null;
 
-    // If order has expired from Redis, use the stored snapshot
+    // Live status takes precedence while order is in active queue (<48h);
+    // when expired from active queue, defaults to 'completed'
     const status = liveRaw.status || stored.status || 'completed';
     const paymentStatus = liveRaw.paymentStatus || (stored.isPaid ? 'PAID' : 'UNPAID');
 
-    // Merge: live data takes priority; fall back to stored snapshot
-    const items = (liveData && liveData.items) || stored.items || [];
+    // Items, subtotal, discount, tax: stored permanent receipt
+    const items = (liveData && liveData.items && liveData.items.length) ? liveData.items : (stored.items || []);
     const total = stored.total || (liveData && liveData.total) || 0;
-    const table = (liveData && liveData.table) || stored.table || 0;
+    const table = (liveData && liveData.table !== undefined) ? liveData.table : (stored.table || 0);
 
     return {
       id: stored.id,
@@ -53,17 +59,16 @@ module.exports = route(['GET'], async (req, res) => {
       statusLabel: STATUS_LABEL[status] || status,
       paymentStatus,
       total,
+      subtotal: stored.subtotal || total,
+      discount: stored.discount || 0,
+      tax: stored.tax || 0,
       items,
       table,
       createdAt: stored.at || (liveData && liveData.createdAt) || '',
-      expired: !liveRaw.status // order key gone from Redis (> 48h)
+      expired: !liveRaw.status // true when archived into lifetime history
     };
-  }).filter(o => {
-    // Show all non-expired orders, plus any completed/expired in the last 48h window
-    if (!o.expired) return true;
-    if (!o.createdAt) return false;
-    return Date.now() - new Date(o.createdAt).getTime() < 48 * 60 * 60 * 1000;
   });
 
   res.json({ orders });
 });
+
