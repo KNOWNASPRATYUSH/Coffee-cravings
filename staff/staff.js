@@ -132,7 +132,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 function setTab(t) { currentTab = t; showTab(); }
 function renderNav() {
   const el = document.getElementById('staff-nav'); if (!el) return;
-  el.innerHTML = [['orders', 'Orders'], ['reports', 'Reports'], ['menu', 'Menu'], ['coupons', 'Coupons'], ['qr', 'QR Codes']].map(([k, l]) =>
+  el.innerHTML = [['orders', 'Orders'], ['reports', 'Reports'], ['menu', 'Menu'], ['deals', 'Deals (BOGO)'], ['coupons', 'Coupons'], ['customers', 'Customers'], ['qr', 'QR Codes']].map(([k, l]) =>
     `<button class="${currentTab === k ? 'btn-godaddy-dark' : 'btn-godaddy-outline'}" style="font-size:12px; padding:8px 16px;" onclick="setTab('${k}')">${l}</button>`).join('');
 }
 function showTab() {
@@ -142,7 +142,9 @@ function showTab() {
   if (currentTab === 'qr') { v.innerHTML = renderQrTablesPage(); generatePlacardQr(selectedQrPlacardTable); }
   else if (currentTab === 'reports') renderReports(v);
   else if (currentTab === 'menu') renderMenuAdmin(v);
+  else if (currentTab === 'deals') renderDeals(v);
   else if (currentTab === 'coupons') renderCoupons(v);
+  else if (currentTab === 'customers') renderCustomers(v);
   else { v.innerHTML = renderBaristaKdsPage(); renderKdsOrders(); }
 }
 

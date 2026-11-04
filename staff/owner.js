@@ -1,17 +1,17 @@
-/* Owner-only screens: Reports, Menu manager, Coupons. Loaded by /staff; the API refuses anyone who is not the owner. */
+/* Owner-only screens: Reports, Menu manager, Deals (BOGO), Coupons, Customer CRM. Loaded by /staff; the API refuses anyone who is not the owner. */
 'use strict';
 const rs = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const CARD = 'background:#fff; border:1px solid #e5e5e5; border-radius:8px; padding:16px;';
 const SMALL_BTN = 'font-size:12px; padding:6px 12px;';
 const INPUT = 'width:100%; padding:9px 10px; border:1px solid #ccc; border-radius:4px; font-size:14px; box-sizing:border-box;';
-let reportDays = 7, lastReport = null, adminMenu = [], adminCoupons = [];
+let reportDays = 7, lastReport = null, adminMenu = [], adminCoupons = [], adminDeals = [], adminCustomers = [], customerSearch = '';
 
 function openModal(html) {
   closeModal();
   const el = document.createElement('div');
   el.id = 'owner-modal';
   el.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:9999; display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:20px 12px;';
-  el.innerHTML = `<div style="${CARD} width:100%; max-width:520px; margin:auto;">${html}</div>`;
+  el.innerHTML = `<div style="${CARD} width:100%; max-width:560px; margin:auto;">${html}</div>`;
   document.body.appendChild(el);
 }
 function closeModal() { const el = document.getElementById('owner-modal'); if (el) el.remove(); }
@@ -128,6 +128,90 @@ async function deleteItem(i) {
   catch (e) { showToast(e.message, 'error'); }
 }
 
+/* ---------------- Deals (Buy X Get Y Free) ---------------- */
+async function renderDeals(view) {
+  view.innerHTML = `<p class="story-text">Loading deals…</p>`;
+  try {
+    const [d, m] = await Promise.all([api('/api/owner/deals'), api('/api/owner/menu')]);
+    adminDeals = d.deals || []; adminMenu = m.menu || [];
+  } catch (e) { if (role) view.innerHTML = `<p style="color:#b91c1c">${esc(e.message)}</p>`; return; }
+  drawDeals(view);
+}
+function drawDeals(view) {
+  view = view || document.getElementById('staff-view');
+  const itemName = (id) => { const f = adminMenu.find(m => m.id === id); return f ? f.name : id; };
+  view.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+      <span style="font-size:13px; color:#666;">Set promotional offers like "Buy 2 Cappuccinos get 1 Salted Fries Free". The server automatically calculates and awards free items.</span>
+      <button class="btn-godaddy-dark" style="${SMALL_BTN}" onclick="dealForm(-1)">+ New deal</button>
+    </div>
+    <div style="${CARD} padding:0; overflow:hidden;">${adminDeals.map((d, i) => `
+      <div style="display:flex; gap:12px; align-items:center; padding:12px 14px; border-top:${i ? '1px solid #eee' : '0'}; flex-wrap:wrap; opacity:${d.active ? 1 : .5};">
+        <div style="flex:1; min-width:200px;">
+          <div style="font-weight:700; font-size:15px;">${esc(d.name)}${d.active ? '' : ' <span style="font-size:11px; color:#b91c1c;">(off)</span>'}</div>
+          <div style="font-size:13px; color:#444; margin-top:3px;">
+            Buy <b>${d.buyQty}x ${esc(itemName(d.buyItemId))}</b> ➔ Get <b>${d.freeQty}x ${esc(itemName(d.freeItemId))} FREE</b>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn-godaddy-outline" style="${SMALL_BTN}" onclick="dealForm(${i})">Edit</button>
+          <button class="btn-godaddy-outline" style="${SMALL_BTN}" onclick="toggleDeal(${i})">${d.active ? 'Turn off' : 'Turn on'}</button>
+          <button class="btn-godaddy-outline" style="${SMALL_BTN} color:#b91c1c;" onclick="deleteDeal(${i})">Delete</button>
+        </div>
+      </div>`).join('') || '<p style="padding:16px; font-size:14px;">No deals active yet. Click "+ New deal" to create one.</p>'}
+    </div>`;
+}
+function dealForm(i) {
+  const d = i >= 0 ? adminDeals[i] : { buyQty: 2, freeQty: 1, active: true };
+  const menuOptions = (selectedId) => adminMenu.map(m => `<option value="${esc(m.id)}" ${m.id === selectedId ? 'selected' : ''}>${esc(m.name)} (₹${m.price})</option>`).join('');
+  openModal(`
+    <h3 class="section-heading-serif" style="font-size:22px; margin:0 0 4px;">${i >= 0 ? 'Edit deal' : 'New Buy X Get Y Deal'}</h3>
+    ${field('Deal Title (e.g. Buy 2 Cappuccinos Get 1 Fries Free)', `<input id="om-deal-name" style="${INPUT}" maxlength="80" value="${esc(d.name || '')}" />`)}
+    <div style="display:grid; grid-template-columns:2fr 1fr; gap:10px;">
+      ${field('Customer Buys (Product)', `<select id="om-deal-buy-item" style="${INPUT}">${menuOptions(d.buyItemId)}</select>`)}
+      ${field('Quantity', `<input id="om-deal-buy-qty" type="number" min="1" max="50" style="${INPUT}" value="${esc(d.buyQty || 2)}" />`)}
+    </div>
+    <div style="display:grid; grid-template-columns:2fr 1fr; gap:10px;">
+      ${field('Customer Gets Free (Product)', `<select id="om-deal-free-item" style="${INPUT}">${menuOptions(d.freeItemId)}</select>`)}
+      ${field('Free Qty', `<input id="om-deal-free-qty" type="number" min="1" max="20" style="${INPUT}" value="${esc(d.freeQty || 1)}" />`)}
+    </div>
+    <label style="display:block; margin-top:12px; font-size:14px;"><input type="checkbox" id="om-deal-active" ${d.active !== false ? 'checked' : ''} /> Active (customers can unlock this offer)</label>
+    <p id="om-error" role="alert" style="color:#b91c1c; font-size:13px; min-height:18px; margin:10px 0 0;"></p>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button class="btn-godaddy-dark" id="om-deal-save" onclick="saveDeal(${i})">Save Deal</button>
+      <button class="btn-godaddy-outline" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+async function saveDeal(i) {
+  const btn = document.getElementById('om-deal-save'); if (btn) btn.disabled = true;
+  const deal = {
+    id: i >= 0 ? adminDeals[i].id : undefined,
+    name: val('om-deal-name'),
+    buyItemId: val('om-deal-buy-item'),
+    buyQty: val('om-deal-buy-qty'),
+    freeItemId: val('om-deal-free-item'),
+    freeQty: val('om-deal-free-qty'),
+    active: checked('om-deal-active')
+  };
+  try {
+    adminDeals = (await api('/api/owner/deals', { method: 'PUT', body: JSON.stringify({ deal }) })).deals;
+    closeModal(); drawDeals(); showToast('Deal saved', 'success');
+  } catch (e) { formError(e.message); if (btn) btn.disabled = false; }
+}
+async function toggleDeal(i) {
+  try {
+    adminDeals = (await api('/api/owner/deals', { method: 'PUT', body: JSON.stringify({ deal: { ...adminDeals[i], active: !adminDeals[i].active } }) })).deals;
+    drawDeals(); showToast('Deal status updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+async function deleteDeal(i) {
+  if (!confirm(`Delete deal "${adminDeals[i].name}"?`)) return;
+  try {
+    adminDeals = (await api('/api/owner/deals', { method: 'DELETE', body: JSON.stringify({ id: adminDeals[i].id }) })).deals;
+    drawDeals(); showToast('Deal deleted', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
 /* ---------------- Coupons ---------------- */
 async function renderCoupons(view) {
   view.innerHTML = `<p class="story-text">Loading coupons…</p>`;
@@ -144,9 +228,15 @@ function drawCoupons(view) {
     </div>
     <div style="${CARD} padding:0; overflow:hidden;">${adminCoupons.map((c, i) => `
       <div style="display:flex; gap:12px; align-items:center; padding:12px 14px; border-top:${i ? '1px solid #eee' : '0'}; flex-wrap:wrap; opacity:${c.active ? 1 : .5};">
-        <div style="flex:1; min-width:160px;"><div style="font-weight:700; letter-spacing:1px;">${esc(c.code)}${c.active ? '' : ' <span style="font-size:11px; color:#b91c1c; letter-spacing:0;">(off)</span>'}</div>
-          <div style="font-size:12px; color:#777;">${esc(desc(c))}</div>
-          <div style="font-size:12px; color:#777;">Used ${c.uses}${c.maxUses ? ' / ' + c.maxUses : ''} times${c.expiresAt ? ' · expires ' + esc(c.expiresAt) : ''}</div></div>
+        <div style="flex:1; min-width:160px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-weight:700; letter-spacing:1px;">${esc(c.code)}</span>
+            ${c.active ? '' : ' <span style="font-size:11px; color:#b91c1c; letter-spacing:0;">(off)</span>'}
+            ${c.newCustomerOnly ? '<span style="font-size:10px; background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; padding:1px 6px; border-radius:4px; font-weight:600;">NEW CUSTOMERS ONLY</span>' : ''}
+          </div>
+          <div style="font-size:12px; color:#777; margin-top:2px;">${esc(desc(c))}</div>
+          <div style="font-size:12px; color:#777;">Used ${c.uses}${c.maxUses ? ' / ' + c.maxUses : ''} times${c.expiresAt ? ' · expires ' + esc(c.expiresAt) : ''}</div>
+        </div>
         <div style="display:flex; gap:6px;">
           <button class="btn-godaddy-outline" style="${SMALL_BTN}" onclick="couponForm(${i})">Edit</button>
           <button class="btn-godaddy-outline" style="${SMALL_BTN}" onclick="toggleCoupon(${i})">${c.active ? 'Turn off' : 'Turn on'}</button>
@@ -164,7 +254,10 @@ function couponForm(i) {
     ${field('Maximum discount (₹, only for %, 0 = none)', `<input id="om-max" type="number" min="0" inputmode="decimal" style="${INPUT}" value="${esc(c.maxDiscount || 0)}" />`)}
     ${field('Expiry date (optional)', `<input id="om-exp" type="date" style="${INPUT}" value="${esc(c.expiresAt || '')}" />`)}
     ${field('Total uses allowed (0 = unlimited)', `<input id="om-uses" type="number" min="0" inputmode="numeric" style="${INPUT}" value="${esc(c.maxUses || 0)}" />`)}
-    <label style="display:block; margin-top:12px; font-size:14px;"><input type="checkbox" id="om-active" ${c.active !== false ? 'checked' : ''} /> Active</label>
+    <label style="display:block; margin-top:10px; font-size:14px; background:#eff6ff; padding:8px 10px; border-radius:4px; border:1px solid #bfdbfe; color:#1e3a8a;">
+      <input type="checkbox" id="om-newcust" ${c.newCustomerOnly ? 'checked' : ''} /> 🌟 <b>New customers only</b> (First-time order welcome coupon)
+    </label>
+    <label style="display:block; margin-top:8px; font-size:14px;"><input type="checkbox" id="om-active" ${c.active !== false ? 'checked' : ''} /> Active</label>
     <p id="om-error" role="alert" style="color:#b91c1c; font-size:13px; min-height:18px; margin:10px 0 0;"></p>
     <div style="display:flex; gap:8px; margin-top:8px;"><button class="btn-godaddy-dark" id="om-save" onclick="saveCoupon()">Save</button><button class="btn-godaddy-outline" onclick="closeModal()">Cancel</button></div>`);
 }
@@ -176,7 +269,7 @@ async function saveCoupon() {
   const btn = document.getElementById('om-save'); btn.disabled = true;
   try {
     await sendCoupon({ code: val('om-code'), type: val('om-type'), value: val('om-value'), minOrder: val('om-min'), maxDiscount: val('om-max'),
-      expiresAt: val('om-exp'), maxUses: val('om-uses'), active: checked('om-active') }, true);
+      expiresAt: val('om-exp'), maxUses: val('om-uses'), newCustomerOnly: checked('om-newcust'), active: checked('om-active') }, true);
     showToast('Coupon saved', 'success');
   } catch (e) { formError(e.message); btn.disabled = false; }
 }
@@ -185,4 +278,109 @@ async function deleteCoupon(i) {
   if (!confirm(`Delete coupon ${adminCoupons[i].code}?`)) return;
   try { adminCoupons = (await api('/api/owner/coupons', { method: 'DELETE', body: JSON.stringify({ code: adminCoupons[i].code }) })).coupons; drawCoupons(); }
   catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ---------------- Customer CRM ---------------- */
+async function renderCustomers(view) {
+  view.innerHTML = `<p class="story-text">Loading customer database…</p>`;
+  try {
+    const res = await api('/api/owner/customers');
+    adminCustomers = res.customers || [];
+    drawCustomers(view, res.totals);
+  } catch (e) { if (role) view.innerHTML = `<p style="color:#b91c1c">${esc(e.message)}</p>`; }
+}
+function drawCustomers(view, totals) {
+  view = view || document.getElementById('staff-view');
+  const t = totals || { totalCustomers: adminCustomers.length, repeatCustomers: adminCustomers.filter(c => c.orders > 1).length, totalSpend: adminCustomers.reduce((s, c) => s + c.totalSpend, 0) };
+  const filtered = adminCustomers.filter(c => {
+    if (!customerSearch) return true;
+    const q = customerSearch.toLowerCase();
+    return (c.phone && c.phone.includes(q)) || (c.name && c.name.toLowerCase().includes(q));
+  });
+
+  const tier = (orders) => {
+    if (orders >= 5) return '<span style="background:#fef3c7; color:#92400e; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:600;">VIP ⭐</span>';
+    if (orders >= 2) return '<span style="background:#dbeafe; color:#1e40af; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:600;">Regular</span>';
+    return '<span style="background:#f3f4f6; color:#4b5563; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:600;">New</span>';
+  };
+
+  view.innerHTML = `
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:14px;">
+      <div style="${CARD}"><div style="font-size:12px; color:#666;">Total Customers</div><div style="font-size:24px; font-weight:600; margin-top:4px;">${t.totalCustomers}</div></div>
+      <div style="${CARD}"><div style="font-size:12px; color:#666;">Repeat Guests</div><div style="font-size:24px; font-weight:600; margin-top:4px;">${t.repeatCustomers}</div></div>
+      <div style="${CARD}"><div style="font-size:12px; color:#666;">Customer Lifetime Spend</div><div style="font-size:24px; font-weight:600; margin-top:4px;">${rs(t.totalSpend)}</div></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+      <input type="text" id="cust-search" placeholder="Search customer by phone or name…" style="${INPUT} max-width:320px;" value="${esc(customerSearch)}" oninput="customerSearch=this.value; drawCustomers(document.getElementById('staff-view'))" />
+      <span style="font-size:13px; color:#666;">Showing ${filtered.length} of ${adminCustomers.length} customers</span>
+    </div>
+    <div style="${CARD} padding:0; overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:13px; min-width:600px;">
+        <thead>
+          <tr style="background:#fafafa; border-bottom:1px solid #eee; text-align:left; color:#666; font-size:12px;">
+            <th style="padding:10px 14px;">Customer</th>
+            <th style="padding:10px 14px;">Tier</th>
+            <th style="padding:10px 14px;">Orders</th>
+            <th style="padding:10px 14px;">Total Spent</th>
+            <th style="padding:10px 14px;">Last Visit</th>
+            <th style="padding:10px 14px; text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.map((c, i) => `
+            <tr style="border-top:${i ? '1px solid #eee' : '0'};">
+              <td style="padding:10px 14px;">
+                <div style="font-weight:600;">${esc(c.name || 'Guest')}</div>
+                <div style="font-size:12px; color:#666; font-family:monospace;">${esc(c.phone)}</div>
+              </td>
+              <td style="padding:10px 14px;">${tier(c.orders)}</td>
+              <td style="padding:10px 14px;"><b>${c.orders}</b> orders (${c.paidOrders} paid)</td>
+              <td style="padding:10px 14px; font-weight:600;">${rs(c.totalSpend)}</td>
+              <td style="padding:10px 14px; color:#777; font-size:12px;">${c.lastSeen ? new Date(c.lastSeen).toLocaleDateString('en-IN') : '—'}</td>
+              <td style="padding:10px 14px; text-align:right;">
+                <button class="btn-godaddy-outline" style="${SMALL_BTN}" onclick="viewCustomerHistory('${esc(c.phone)}')">Order history</button>
+              </td>
+            </tr>`).join('') || '<tr><td colspan="6" style="padding:16px; text-align:center; color:#777;">No customers found. Customers appear here automatically when they place an order.</td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+}
+async function viewCustomerHistory(phone) {
+  openModal(`<p class="story-text">Loading customer order history…</p>`);
+  try {
+    const res = await api('/api/owner/customers?phone=' + encodeURIComponent(phone));
+    const cust = res.customer;
+    const orders = res.orders || [];
+    openModal(`
+      <h3 class="section-heading-serif" style="font-size:22px; margin:0 0 6px;">Customer Profile</h3>
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:12px; border-radius:6px; margin-bottom:14px;">
+        <div>
+          <div style="font-weight:700; font-size:16px;">${esc(cust.name || 'Guest')}</div>
+          <div style="font-size:13px; color:#666; font-family:monospace;">${esc(cust.phone)}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:700; font-size:16px;">${rs(cust.totalSpend)}</div>
+          <div style="font-size:12px; color:#777;">${cust.orders} orders placed</div>
+        </div>
+      </div>
+      <h4 style="font-size:14px; margin:0 0 8px; font-weight:600;">Order Log (${orders.length})</h4>
+      <div style="max-height:260px; overflow-y:auto; border:1px solid #eee; border-radius:6px;">
+        ${orders.map((o, idx) => `
+          <div style="padding:10px 12px; border-top:${idx ? '1px solid #eee' : '0'}; display:flex; justify-content:space-between; align-items:center; font-size:13px;">
+            <div>
+              <div style="font-weight:600;">Order ${esc(o.id)}</div>
+              <div style="font-size:11px; color:#777;">${new Date(o.at).toLocaleString('en-IN')}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:600;">${rs(o.total)}</div>
+              <span style="font-size:11px; color:${o.isPaid ? '#047857' : '#b45309'}; font-weight:600;">${o.isPaid ? '✓ PAID' : 'UNPAID'}</span>
+            </div>
+          </div>`).join('') || '<p style="padding:12px; color:#777; font-size:13px; margin:0;">No orders recorded yet.</p>'}
+      </div>
+      <div style="margin-top:14px; text-align:right;">
+        <button class="btn-godaddy-dark" style="${SMALL_BTN}" onclick="closeModal()">Close</button>
+      </div>`);
+  } catch (e) {
+    openModal(`<p style="color:#b91c1c;">${esc(e.message)}</p><button class="btn-godaddy-outline" style="${SMALL_BTN}" onclick="closeModal()">Close</button>`);
+  }
 }

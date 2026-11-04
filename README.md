@@ -31,7 +31,9 @@ verified by signature, webhook is the safety net) -> order becomes **PAID** and 
 ## Owner portal (`/staff`, owner PIN)
 - **Reports:** today / 7 / 30 days. Revenue, paid orders, average order, discounts, GST, busy hours, top items, payment split, CSV download. Only PAID orders count, each exactly once.
 - **Menu:** add / edit / hide / delete products and categories. Changes reach customers immediately (images are https links for now).
-- **Coupons:** percent or flat, minimum order, max discount, expiry date, usage limit, on/off. Discount applies before GST. The server re-checks every coupon at order time.
+- **Deals (BOGO / Buy X Get Y):** Create promotional deals (e.g. Buy 2 Cappuccinos get 1 Fries free, or Buy 1 Get 1 Americano). Live tags show on menu and cart, and the server automatically calculates and awards free items at ₹0.
+- **Coupons:** percent or flat, minimum order, max discount, expiry date, usage limit, on/off. Discount applies before GST. Includes first-order "New customer only" welcome coupons verified by phone number.
+- **Customer CRM:** Tracks guest phone numbers, total visits, paid orders, and lifetime spend. Search customers and view individual order logs.
 - Barista PIN only sees Orders.
 
 ## Redis usage

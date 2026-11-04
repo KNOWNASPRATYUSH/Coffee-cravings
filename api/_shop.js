@@ -1,11 +1,12 @@
 'use strict';
-// Menu, coupons and sales statistics (all stored in Redis; the menu falls back to menu-data.js until the owner edits it).
-const { cmd, pipe, HttpError, ORDER_TTL_S } = require('./_lib');
+// Menu, coupons, deals, customer database and sales statistics (all stored in Redis; the menu falls back to menu-data.js until the owner edits it).
+const { cmd, pipe, HttpError, ORDER_TTL_S, toObj } = require('./_lib');
 const DEFAULT_MENU = require('../menu-data.js');
 
 const ist = (ts) => { const d = new Date(ts + 19800000); return { day: d.toISOString().slice(0, 10), hour: String(d.getUTCHours()).padStart(2, '0') }; };
 const text = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>"`\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 const parse = (raw) => { try { return raw ? JSON.parse(raw) : null; } catch (e) { return null; } };
+const cleanPhone = (v) => String(v || '').replace(/[^0-9]/g, '').slice(-15);
 
 // ---------- menu ----------
 async function loadMenu() {
@@ -44,6 +45,103 @@ function upsertItem(menu, raw) {
   const item = { id, ...fields }; menu.push(item); return item;
 }
 
+// ---------- deals (Buy X Get Y Free) ----------
+async function loadDeals() {
+  const all = Object.values(toObj(await cmd('HGETALL', 'deals'))).map(parse).filter(Boolean);
+  return all.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function cleanDeal(raw, menu) {
+  const name = text(raw.name, 80);
+  if (!name) throw new HttpError(400, 'Deal name is required.');
+  const buyItemId = String(raw.buyItemId || '').trim();
+  const buyQty = Math.floor(Number(raw.buyQty));
+  if (!menu.some(m => m.id === buyItemId)) throw new HttpError(400, 'Selected "Buy" product is not in the menu.');
+  if (!(buyQty >= 1 && buyQty <= 50)) throw new HttpError(400, 'Buy quantity must be between 1 and 50.');
+  
+  const freeItemId = String(raw.freeItemId || '').trim();
+  const freeQty = Math.floor(Number(raw.freeQty));
+  if (!menu.some(m => m.id === freeItemId)) throw new HttpError(400, 'Selected "Free" product is not in the menu.');
+  if (!(freeQty >= 1 && freeQty <= 20)) throw new HttpError(400, 'Free quantity must be between 1 and 20.');
+
+  const id = raw.id ? String(raw.id).trim() : 'deal-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+  return { id, name, buyItemId, buyQty, freeItemId, freeQty, active: raw.active !== false };
+}
+
+const publicDeal = (d) => ({
+  id: d.id, name: d.name, buyItemId: d.buyItemId, buyQty: d.buyQty, freeItemId: d.freeItemId, freeQty: d.freeQty
+});
+
+function applyDealsToCart(rawItems, liveMap, deals) {
+  const requested = new Map();
+  for (const it of rawItems) {
+    if (it && it.id && it.qty > 0) requested.set(it.id, (requested.get(it.id) || 0) + it.qty);
+  }
+
+  const freebies = [];
+  for (const deal of (deals || []).filter(d => d.active !== false)) {
+    const bought = requested.get(deal.buyItemId) || 0;
+    if (bought < deal.buyQty) continue;
+
+    if (deal.buyItemId === deal.freeItemId) {
+      // Same item BOGO (e.g. Buy 2 Get 1 Free on Cappuccino)
+      const cycle = deal.buyQty + deal.freeQty;
+      const fullCycles = Math.floor(bought / cycle);
+      const remainder = bought % cycle;
+      let freeCount = fullCycles * deal.freeQty;
+      let paidCount = fullCycles * deal.buyQty;
+      if (remainder >= deal.buyQty) {
+        paidCount += remainder;
+        freeCount += Math.floor(remainder / deal.buyQty) * deal.freeQty;
+      } else {
+        paidCount += remainder;
+      }
+      requested.set(deal.buyItemId, paidCount);
+      const m = liveMap.get(deal.freeItemId);
+      if (m && freeCount > 0) {
+        freebies.push({
+          id: m.id,
+          name: `${m.name} (Free · ${deal.name})`,
+          qty: freeCount,
+          price: 0,
+          isFree: true,
+          dealId: deal.id
+        });
+      }
+    } else {
+      // Different item (e.g. Buy 2 Cappuccinos, Get 1 Croissant free)
+      const times = Math.floor(bought / deal.buyQty);
+      const totalFree = times * deal.freeQty;
+      const existingInCart = requested.get(deal.freeItemId) || 0;
+      const freeFromCart = Math.min(existingInCart, totalFree);
+      if (freeFromCart > 0) {
+        requested.set(deal.freeItemId, existingInCart - freeFromCart);
+      }
+      const m = liveMap.get(deal.freeItemId);
+      if (m && totalFree > 0) {
+        freebies.push({
+          id: m.id,
+          name: `${m.name} (Free · ${deal.name})`,
+          qty: totalFree,
+          price: 0,
+          isFree: true,
+          dealId: deal.id
+        });
+      }
+    }
+  }
+
+  const finalItems = [];
+  for (const [id, qty] of requested) {
+    if (qty > 0) {
+      const m = liveMap.get(id);
+      if (m) finalItems.push({ id, name: m.name, qty, price: m.price });
+    }
+  }
+  for (const fb of freebies) finalItems.push(fb);
+  return { items: finalItems, freebies };
+}
+
 // ---------- coupons ----------
 const cleanCode = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
 function cleanCoupon(raw) {
@@ -56,7 +154,7 @@ function cleanCoupon(raw) {
   const expiresAt = String(raw.expiresAt || '');
   if (expiresAt && !/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) throw new HttpError(400, 'Expiry date is invalid.');
   return { code, type, value, minOrder: num(raw.minOrder, 100000, 'Minimum order'), maxDiscount: type === 'percent' ? num(raw.maxDiscount, 100000, 'Max discount') : 0,
-    maxUses: Math.floor(num(raw.maxUses, 1000000, 'Max uses')), expiresAt, active: raw.active !== false };
+    maxUses: Math.floor(num(raw.maxUses, 1000000, 'Max uses')), expiresAt, active: raw.active !== false, newCustomerOnly: !!raw.newCustomerOnly };
 }
 const discountOf = (c, subtotalP) => {
   let d = c.type === 'percent' ? Math.floor(subtotalP * c.value / 100) : Math.round(c.value * 100);
@@ -64,13 +162,93 @@ const discountOf = (c, subtotalP) => {
   return Math.min(d, subtotalP);
 };
 // subtotalP = null -> only check that the code itself is usable (used by the "Apply" button)
-async function checkCoupon(code, subtotalP) {
+async function checkCoupon(code, subtotalP, rawPhone) {
   const c = parse(await cmd('HGET', 'coupons', code));
   if (!c || !c.active) throw new HttpError(400, 'This coupon code is not valid.');
   if (c.expiresAt && Date.now() > new Date(c.expiresAt + 'T23:59:59+05:30').getTime()) throw new HttpError(400, 'This coupon has expired.');
   if (c.maxUses > 0 && (parseInt(await cmd('GET', 'coupon:uses:' + code), 10) || 0) >= c.maxUses) throw new HttpError(400, 'This coupon has been fully redeemed.');
   if (subtotalP !== null && subtotalP < c.minOrder * 100) throw new HttpError(400, `Add items worth ₹${c.minOrder} or more to use this coupon.`);
+  if (c.newCustomerOnly) {
+    const phone = cleanPhone(rawPhone);
+    if (!phone || phone.length < 6) throw new HttpError(400, 'Please enter your phone number to use this welcome coupon.');
+    const cust = await lookupCustomer(phone);
+    if (cust && (cust.orders > 0 || cust.paidOrders > 0)) {
+      throw new HttpError(400, 'This welcome coupon is only valid for new customers on their first order.');
+    }
+    const alreadyUsed = await cmd('GET', 'coupon:welcome:used:' + phone);
+    if (alreadyUsed) throw new HttpError(400, 'This welcome coupon has already been used for this number.');
+  }
   return { coupon: c, discountP: subtotalP === null ? 0 : discountOf(c, subtotalP) };
+}
+
+// ---------- customer database & CRM ----------
+async function lookupCustomer(rawPhone) {
+  const phone = cleanPhone(rawPhone);
+  if (!phone || phone.length < 6) return null;
+  const raw = toObj(await cmd('HGETALL', 'customer:' + phone));
+  if (!raw || !raw.phone) return { phone, exists: false, isNew: true, name: '', orders: 0, paidOrders: 0, totalSpend: 0 };
+  return {
+    phone, exists: true, isNew: (parseInt(raw.orders, 10) || 0) === 0,
+    name: raw.name || '', orders: parseInt(raw.orders, 10) || 0,
+    paidOrders: parseInt(raw.paidOrders, 10) || 0,
+    totalSpend: Math.round(Number(raw.totalSpendP || 0)) / 100,
+    firstSeen: raw.firstSeen || '', lastSeen: raw.lastSeen || ''
+  };
+}
+
+async function recordCustomerOrder(phone, name, orderId, totalP, isPaid) {
+  const p = cleanPhone(phone);
+  if (!p || p.length < 6) return;
+  const now = new Date().toISOString();
+  const key = 'customer:' + p;
+  const existing = toObj(await cmd('HGETALL', key));
+  const firstSeen = existing.firstSeen || now;
+  const c = [
+    ['HSET', key, 'phone', p, 'name', text(name, 60) || existing.name || 'Guest', 'lastSeen', now, 'firstSeen', firstSeen],
+    ['HINCRBY', key, 'orders', 1],
+    ['ZADD', 'customers', Date.now(), p],
+    ['HSET', 'cust:orders:' + p, orderId, JSON.stringify({ id: orderId, at: now, total: totalP / 100, isPaid })]
+  ];
+  if (isPaid) {
+    c.push(['HINCRBY', key, 'paidOrders', 1], ['HINCRBY', key, 'totalSpendP', totalP]);
+  }
+  await pipe(c);
+}
+
+async function recordCustomerPayment(phone, orderId, totalP) {
+  const p = cleanPhone(phone);
+  if (!p || p.length < 6) return;
+  const key = 'customer:' + p;
+  const c = [
+    ['HINCRBY', key, 'paidOrders', 1],
+    ['HINCRBY', key, 'totalSpendP', totalP]
+  ];
+  const orderRaw = await cmd('HGET', 'cust:orders:' + p, orderId);
+  if (orderRaw) {
+    const o = parse(orderRaw);
+    if (o) { o.isPaid = true; c.push(['HSET', 'cust:orders:' + p, orderId, JSON.stringify(o)]); }
+  }
+  await pipe(c);
+}
+
+async function listCustomers(start = 0, stop = 99) {
+  const phones = await cmd('ZREVRANGE', 'customers', start, stop);
+  if (!phones || !phones.length) return [];
+  const rows = await pipe(phones.map(p => ['HGETALL', 'customer:' + p]));
+  return rows.map(toObj).map(raw => ({
+    phone: raw.phone, name: raw.name || 'Guest',
+    orders: parseInt(raw.orders, 10) || 0,
+    paidOrders: parseInt(raw.paidOrders, 10) || 0,
+    totalSpend: Math.round(Number(raw.totalSpendP || 0)) / 100,
+    firstSeen: raw.firstSeen || '', lastSeen: raw.lastSeen || ''
+  }));
+}
+
+async function getCustomerOrders(phone) {
+  const p = cleanPhone(phone);
+  if (!p) return [];
+  const rawMap = toObj(await cmd('HGETALL', 'cust:orders:' + p));
+  return Object.values(rawMap).map(parse).filter(Boolean).sort((a, b) => new Date(b.at) - new Date(a.at));
 }
 
 // ---------- stats ----------
@@ -86,5 +264,15 @@ async function recordSale(o) {
     ['HINCRBY', key, 'h' + hour, P(o.total)], ['HINCRBY', key, 'ho' + hour, 1]];
   for (const i of o.items) c.push(['HINCRBY', key, 'q:' + i.id, i.qty], ['HINCRBY', key, 'r:' + i.id, P(i.price * i.qty)], ['HSET', key, 'n:' + i.id, i.name]);
   await pipe(c);
+  if (o.phone) {
+    await recordCustomerPayment(o.phone, o.id, P(o.total));
+  }
 }
-module.exports = { ist, text, loadMenu, saveMenu, publicItem, upsertItem, cleanCoupon, cleanCode, checkCoupon, bump, recordSale };
+
+module.exports = {
+  ist, text, loadMenu, saveMenu, publicItem, upsertItem,
+  loadDeals, cleanDeal, publicDeal, applyDealsToCart,
+  cleanCoupon, cleanCode, checkCoupon,
+  cleanPhone, lookupCustomer, recordCustomerOrder, recordCustomerPayment, listCustomers, getCustomerOrders,
+  bump, recordSale
+};

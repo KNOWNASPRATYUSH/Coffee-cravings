@@ -1,6 +1,6 @@
 'use strict';
 const { HttpError, cmd, pipe, toObj, route, clientIp, tableSigOk, MAX_TABLE, ORDER_TTL_S } = require('./_lib');
-const { text, loadMenu, cleanCode, checkCoupon, bump } = require('./_shop');
+const { text, loadMenu, loadDeals, applyDealsToCart, cleanCode, checkCoupon, cleanPhone, recordCustomerOrder, bump } = require('./_shop');
 const pay = require('./_pay');
 
 // Public endpoint used by the customer site. Prices, availability and discounts are always decided here, never by the browser.
@@ -17,14 +17,18 @@ module.exports = route(['POST'], async (req, res) => {
   const menu = await loadMenu();
   const live = new Map(menu.filter(m => m.available !== false).map(m => [m.id, m]));
   if (!Array.isArray(b.items) || b.items.length < 1 || b.items.length > 40) throw new HttpError(400, 'Your cart is empty.');
-  const merged = new Map();
+
+  // Validate items requested
   for (const it of b.items) {
     const m = live.get(it && it.id);
     const qty = Number(it && it.qty);
     if (!m || !Number.isInteger(qty) || qty < 1 || qty > 20) throw new HttpError(400, 'Some items in your cart are no longer available. Please refresh the page.');
-    merged.set(m.id, (merged.get(m.id) || 0) + qty);
   }
-  const items = [...merged].map(([id, qty]) => ({ id, name: live.get(id).name, qty, price: live.get(id).price }));
+
+  // Apply Buy X Get Y Deals (BOGO / Free items)
+  const deals = await loadDeals();
+  const { items, freebies } = applyDealsToCart(b.items, live, deals);
+
   if (items.reduce((s, i) => s + i.qty, 0) > 60) throw new HttpError(400, 'Too many items in one order.');
 
   const table = b.table === undefined || b.table === null || b.table === '' ? 0 : Number(b.table);
@@ -53,9 +57,14 @@ module.exports = route(['POST'], async (req, res) => {
   try {
     const P = (v) => Math.round(v * 100); // all money maths in paise
     const subtotalP = items.reduce((s, i) => s + P(i.price) * i.qty, 0);
-    let discountP = 0, couponCode = '';
+    let discountP = 0, couponCode = '', isNewCustCoupon = false;
     const code = cleanCode(b.coupon);
-    if (code) { discountP = (await checkCoupon(code, subtotalP)).discountP; couponCode = code; }
+    if (code) {
+      const checkRes = await checkCoupon(code, subtotalP, phone);
+      discountP = checkRes.discountP;
+      couponCode = code;
+      isNewCustCoupon = !!checkRes.coupon.newCustomerOnly;
+    }
     const taxP = Math.round((subtotalP - discountP) * 5 / 100); // GST on the discounted amount
     const totalP = subtotalP - discountP + taxP;
 
@@ -63,7 +72,8 @@ module.exports = route(['POST'], async (req, res) => {
     const order = {
       id: 'CC-' + (1000 + seq), table, customerName: text(b.customerName, 60) || 'Guest', phone,
       paymentMethod: b.paymentMethod === 'digital' ? 'digital' : 'counter', specialNotes: text(b.specialNotes, 300),
-      items, subtotal: subtotalP / 100, discount: discountP / 100, couponCode, tax: taxP / 100, total: totalP / 100, createdAt: new Date().toISOString()
+      items, subtotal: subtotalP / 100, discount: discountP / 100, couponCode, tax: taxP / 100, total: totalP / 100,
+      dealsApplied: freebies.map(f => f.dealId), createdAt: new Date().toISOString()
     };
     const online = order.paymentMethod === 'digital' && pay.enabled();
     // Online orders stay hidden from the barista (awaiting_payment) until the gateway confirms the money.
@@ -82,7 +92,17 @@ module.exports = route(['POST'], async (req, res) => {
       writes.push(['HSET', ok, 'gatewayOrderId', g.id, 'amount', totalP], ['SET', 'rzp:' + g.id, order.id, 'EX', ORDER_TTL_S]);
     }
     if (couponCode) writes.push(['INCR', 'coupon:uses:' + couponCode]);
+    if (isNewCustCoupon && phone) {
+      const p = cleanPhone(phone);
+      if (p) writes.push(['SET', 'coupon:welcome:used:' + p, '1', 'EX', 365 * 86400]);
+    }
     await pipe(writes);
+
+    // Record customer order in customer database
+    if (phone) {
+      await recordCustomerOrder(phone, order.customerName, order.id, totalP, false);
+    }
+
     if (!online) await bump();
     res.status(201).json({ order: out, payment });
   } catch (e) {

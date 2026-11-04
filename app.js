@@ -16,6 +16,10 @@ let currentTableSig = '';
 let orderSubmitting = false;
 let gatewayOn = false;
 let appliedCoupon = null; // rule returned by /api/config?coupon=CODE
+let activeDeals = []; // promotional Buy X Get Y Free rules
+let customerInfo = null; // customer CRM profile from /api/customer
+let customerPhone = '';
+let customerName = '';
 
 // Same rules as the server: discount first, GST on the discounted amount.
 function calcTotals(subtotal) {
@@ -30,21 +34,42 @@ function calcTotals(subtotal) {
   return { discount, tax, grandTotal: Math.round((subtotal - discount + tax) * 100) / 100 };
 }
 
+async function lookupCustomerInfo(phone) {
+  const p = String(phone || '').replace(/[^0-9]/g, '');
+  if (p.length < 6) { customerInfo = null; return null; }
+  try {
+    const r = await fetch('/api/customer?phone=' + encodeURIComponent(p));
+    if (r.ok) {
+      customerInfo = await r.json();
+      renderCartCustomerState();
+      return customerInfo;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function applyWelcomeCoupon(code) {
+  const input = document.getElementById('coupon-input');
+  if (input) input.value = code;
+  applyCoupon();
+}
+
 async function applyCoupon() {
   const input = document.getElementById('coupon-input');
   const msg = document.getElementById('coupon-msg');
-  const code = (input.value || '').trim();
+  const code = (input ? input.value : '').trim();
   if (!code) return;
-  msg.style.color = '#555'; msg.innerText = 'Checking…';
+  if (msg) { msg.style.color = '#555'; msg.innerText = 'Checking…'; }
+  const phone = (document.getElementById('cust-phone-input')?.value || customerPhone || '').trim();
   try {
-    const r = await fetch('/api/config?coupon=' + encodeURIComponent(code));
+    const r = await fetch('/api/config?coupon=' + encodeURIComponent(code) + '&phone=' + encodeURIComponent(phone));
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Could not check the coupon.');
     appliedCoupon = d.coupon;
     renderCartDrawer();
   } catch (e) {
     appliedCoupon = null; renderCartDrawer();
-    msg.style.color = '#b91c1c'; msg.innerText = e.message;
+    if (msg) { msg.style.color = '#b91c1c'; msg.innerText = e.message; }
   }
 }
 function removeCoupon() { appliedCoupon = null; renderCartDrawer(); }
@@ -63,6 +88,11 @@ function initStorage() {
     const savedCart = localStorage.getItem('cc_cart');
     if (savedCart) cart = JSON.parse(savedCart);
   } catch (e) { cart = []; }
+  try {
+    customerPhone = localStorage.getItem('cc_cust_phone') || '';
+    customerName = localStorage.getItem('cc_cust_name') || '';
+    if (customerPhone) lookupCustomerInfo(customerPhone);
+  } catch (e) {}
   try {
     const p = new URLSearchParams(window.location.search);
     const t = parseInt(p.get('table'), 10);
@@ -253,11 +283,14 @@ function renderHomePage() {
         <h2 class="section-heading-serif">Featured Products</h2>
       </div>
       <div class="products-grid">
-        ${featured.map(item => `
+        ${featured.map(item => {
+          const itemDeal = (activeDeals || []).find(d => d.active !== false && d.buyItemId === item.id);
+          const dealBadge = itemDeal ? `<span class="product-badge" style="background:#7c2d12; color:#fff; top:8px; right:8px; font-weight:700;">🎁 Buy ${itemDeal.buyQty} Get ${itemDeal.freeQty} Free</span>` : '';
+          return `
           <div class="product-card">
             <div class="product-img-box">
               <img src="${item.image}" alt="${item.name}" class="product-img" loading="lazy" />
-              ${item.badge ? `<span class="product-badge">${item.badge}</span>` : ''}
+              ${dealBadge || (item.badge ? `<span class="product-badge">${item.badge}</span>` : '')}
             </div>
             <div class="product-card-body">
               <h3 class="product-title">${item.name}</h3>
@@ -270,7 +303,7 @@ function renderHomePage() {
               </div>
             </div>
           </div>
-        `).join('')}
+        `;}).join('')}
       </div>
       <div class="text-center mt-4" style="text-align:center;">
         <button class="btn-godaddy-dark" onclick="navigateTo('order')">View Full Menu (${MENU_ITEMS.length} Items)</button>
@@ -462,11 +495,14 @@ function renderOrderPage() {
               <p style="font-size: 18px; color: #666;">No items found matching your filter.</p>
               <button class="btn-godaddy-dark mt-2" onclick="setOrderCategoryFilter('all'); handleOrderSearchInput('');">Show All Items</button>
             </div>
-          ` : filteredItems.map(item => `
+          ` : filteredItems.map(item => {
+            const itemDeal = (activeDeals || []).find(d => d.active !== false && d.buyItemId === item.id);
+            const dealBadge = itemDeal ? `<span class="product-badge" style="background:#7c2d12; color:#fff; top:8px; right:8px; font-weight:700;">🎁 Buy ${itemDeal.buyQty} Get ${itemDeal.freeQty} Free</span>` : '';
+            return `
             <div class="product-card">
               <div class="product-img-box">
                 <img src="${item.image}" alt="${item.name}" class="product-img" loading="lazy" />
-                ${item.badge ? `<span class="product-badge">${item.badge}</span>` : ''}
+                ${dealBadge || (item.badge ? `<span class="product-badge">${item.badge}</span>` : '')}
               </div>
               <div class="product-card-body">
                 <h3 class="product-title">${item.name}</h3>
@@ -479,7 +515,7 @@ function renderOrderPage() {
                 </div>
               </div>
             </div>
-          `).join('')}
+          `;}).join('')}
         </div>
       </section>
     </div>
@@ -772,6 +808,40 @@ function onCartTableChange(val) {
   saveTable(val);
 }
 
+function renderCartCustomerState() {
+  const custBanner = document.getElementById('cart-cust-banner');
+  if (custBanner) {
+    if (customerInfo && customerInfo.isNew && customerInfo.welcomeCoupon) {
+      const wc = customerInfo.welcomeCoupon;
+      custBanner.innerHTML = `
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:8px 10px; border-radius:6px; font-size:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <div>🌟 First order? Use <b>${wc.code}</b> for ${wc.type === 'percent' ? wc.value + '%' : '₹' + wc.value} off!</div>
+          <button type="button" class="btn-godaddy-dark" style="font-size:11px; padding:4px 8px; white-space:nowrap;" onclick="applyWelcomeCoupon('${wc.code}')">Apply</button>
+        </div>
+      `;
+    } else if (customerInfo && !customerInfo.isNew) {
+      custBanner.innerHTML = `
+        <div style="font-size:12px; color:#4b5563; margin-bottom:8px;">
+          👋 Welcome back, <b>${customerInfo.name || 'friend'}</b>! (${customerInfo.orders} visits)
+        </div>
+      `;
+    } else {
+      custBanner.innerHTML = '';
+    }
+  }
+
+  const greetEl = document.getElementById('checkout-cust-greeting');
+  if (greetEl) {
+    if (customerInfo && !customerInfo.isNew) {
+      greetEl.innerHTML = `<span style="color:#047857; font-weight:600;">✓ Welcome back, ${customerInfo.name || 'friend'}! (${customerInfo.orders} previous orders)</span>`;
+    } else if (customerInfo && customerInfo.isNew && customerInfo.welcomeCoupon) {
+      greetEl.innerHTML = `<span style="color:#1d4ed8; font-weight:600;">🌟 Welcome! Eligible for first-order coupon: <b>${customerInfo.welcomeCoupon.code}</b></span>`;
+    } else {
+      greetEl.innerHTML = '';
+    }
+  }
+}
+
 function renderCartDrawer() {
   const container = document.getElementById('cart-items-container');
   const footer = document.getElementById('cart-drawer-footer');
@@ -827,7 +897,49 @@ function renderCartDrawer() {
     `;
   }).join('');
 
-  container.innerHTML = itemsHtml;
+  // Promotional Buy X Get Y Free Deals
+  let promoHtml = '';
+  const dealAlerts = [];
+  for (const deal of (activeDeals || []).filter(d => d.active !== false)) {
+    const buyItem = cart.find(i => i.id === deal.buyItemId);
+    const bought = buyItem ? buyItem.qty : 0;
+    const freeItem = MENU_ITEMS.find(m => m.id === deal.freeItemId);
+    if (!freeItem) continue;
+    const times = Math.floor(bought / deal.buyQty);
+    if (times > 0) {
+      const freeQty = times * deal.freeQty;
+      dealAlerts.push(`
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; padding:8px 10px; border-radius:6px; font-size:12px; margin-bottom:8px;">
+          🎉 <b>Offer Unlocked:</b> ${deal.name} (+${freeQty}x ${freeItem.name} FREE)
+        </div>
+      `);
+      promoHtml += `
+        <div class="cart-item-row" style="background:#f0fdf4; border-radius:6px; padding:8px 10px; border:1px dashed #86efac; margin-top:6px;">
+          <img src="${freeItem.image}" alt="${freeItem.name}" class="cart-item-img" />
+          <div class="cart-item-details">
+            <div>
+              <h4 class="cart-item-name">${freeItem.name} <span style="font-size:10px; background:#16a34a; color:#fff; padding:1px 5px; border-radius:3px; margin-left:4px; font-weight:700;">FREE PROMO</span></h4>
+              <span class="cart-item-price" style="color:#16a34a; font-weight:700;">₹0.00</span>
+            </div>
+            <div style="font-size:12px; font-weight:600; color:#16a34a;">Qty: ${freeQty}</div>
+          </div>
+        </div>
+      `;
+    } else if (bought > 0) {
+      const buyItemName = MENU_ITEMS.find(m => m.id === deal.buyItemId)?.name || '';
+      dealAlerts.push(`
+        <div style="background:#fffbeb; border:1px solid #fef3c7; color:#92400e; padding:6px 10px; border-radius:6px; font-size:11px; margin-bottom:8px;">
+          ✨ Add ${deal.buyQty - bought} more <b>${buyItemName}</b> to get ${deal.freeQty}x ${freeItem.name} FREE!
+        </div>
+      `);
+    }
+  }
+
+  const dealsBannerEl = document.getElementById('cart-deals-banner');
+  if (dealsBannerEl) dealsBannerEl.innerHTML = dealAlerts.join('');
+  renderCartCustomerState();
+
+  container.innerHTML = itemsHtml + promoHtml;
 
   const { discount, tax, grandTotal } = calcTotals(subtotal);
 
@@ -896,6 +1008,22 @@ function openCheckoutModal() {
 
   // Render UPI QR code dynamically for the total amount
   generateDynamicPaymentUpi(grandTotal);
+
+  const phoneInput = document.getElementById('cust-phone-input');
+  const nameInput = document.getElementById('cust-name-input');
+  if (phoneInput && customerPhone) phoneInput.value = customerPhone;
+  if (nameInput && customerName) nameInput.value = customerName;
+  if (phoneInput) {
+    phoneInput.onchange = () => {
+      const p = phoneInput.value.trim();
+      if (p) lookupCustomerInfo(p);
+    };
+    phoneInput.oninput = () => {
+      const p = phoneInput.value.replace(/[^0-9]/g, '');
+      if (p.length >= 10) lookupCustomerInfo(p);
+    };
+  }
+  renderCartCustomerState();
 
   selectPaymentMethod('digital');
   modal.classList.add('open');
@@ -1033,6 +1161,15 @@ async function submitFinalOrder() {
   orderSubmitting = false;
   orderKey = null;
   appliedCoupon = null;
+
+  if (custPhone) {
+    customerPhone = custPhone;
+    try { localStorage.setItem('cc_cust_phone', custPhone); } catch (e) {}
+  }
+  if (custName && custName !== 'Guest') {
+    customerName = custName;
+    try { localStorage.setItem('cc_cust_name', custName); } catch (e) {}
+  }
 
   const orderId = order.id;
   const orderItems = order.items;
@@ -1279,6 +1416,7 @@ async function loadLiveMenu() {
     const c = await r.json();
     gatewayOn = !!c.gateway;
     if (Array.isArray(c.menu)) MENU_ITEMS.splice(0, MENU_ITEMS.length, ...c.menu);
+    if (Array.isArray(c.deals)) activeDeals = c.deals;
     const before = cart.length;
     cart = cart.filter(l => MENU_ITEMS.some(m => m.id === l.id)); // product removed/hidden meanwhile
     if (cart.length !== before) saveCart();

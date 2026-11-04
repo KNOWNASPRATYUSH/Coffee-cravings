@@ -29,7 +29,12 @@ function memExec(c) {
     case 'HINCRBY': { const o = mem.h.get(k) || {}; o[a[0]] = String((parseInt(o[a[0]], 10) || 0) + Number(a[1])); mem.h.set(k, o); return Number(o[a[0]]); }
     case 'HGETALL': { const o = mem.h.get(k); return o ? Object.entries(o).flat() : []; }
     case 'ZADD': { const z = mem.z.get(k) || new Map(); z.set(a[1], Number(a[0])); mem.z.set(k, z); return 1; }
-    case 'ZREVRANGE': { const z = mem.z.get(k) || new Map(); return [...z.entries()].sort((x, y) => y[1] - x[1]).map(e => e[0]).slice(Number(a[0]), Number(a[1]) + 1); }
+    case 'ZREVRANGE': {
+      const z = mem.z.get(k) || new Map();
+      const sorted = [...z.entries()].sort((x, y) => y[1] - x[1]).map(e => e[0]);
+      const start = Number(a[0]), stop = Number(a[1]);
+      return stop === -1 ? sorted.slice(start) : sorted.slice(start, stop + 1);
+    }
     case 'ZREMRANGEBYSCORE': { const z = mem.z.get(k); if (z) for (const [m, s] of z) if (s <= Number(String(a[1]).replace('(', ''))) z.delete(m); return 1; }
     default: throw new Error('memExec: unsupported ' + op);
   }

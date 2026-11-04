@@ -1,7 +1,12 @@
 'use strict';
-// Owner-only admin API: /api/owner/menu, /api/owner/coupons, /api/owner/report
+// Owner-only admin API: /api/owner/menu, /api/owner/coupons, /api/owner/deals, /api/owner/customers, /api/owner/report
 const { HttpError, cmd, pipe, toObj, route, requireStaff } = require('../_lib');
-const { ist, loadMenu, saveMenu, upsertItem, cleanCoupon, cleanCode } = require('../_shop');
+const {
+  ist, loadMenu, saveMenu, upsertItem,
+  loadDeals, cleanDeal,
+  cleanCoupon, cleanCode,
+  lookupCustomer, listCustomers, getCustomerOrders
+} = require('../_shop');
 
 const parse = (raw) => { try { return JSON.parse(raw); } catch (e) { return null; } };
 
@@ -21,11 +26,50 @@ async function menuApi(req, res) {
 }
 
 async function couponsApi(req, res) {
-  if (req.method === 'PUT') { const c = cleanCoupon(req.body.coupon || {}); await cmd('HSET', 'coupons', c.code, JSON.stringify(c)); }
+  if (req.method === 'PUT') {
+    const c = cleanCoupon(req.body.coupon || {});
+    await cmd('HSET', 'coupons', c.code, JSON.stringify(c));
+  }
   if (req.method === 'DELETE') await cmd('HDEL', 'coupons', cleanCode(req.body.code));
   const all = Object.values(toObj(await cmd('HGETALL', 'coupons'))).map(parse).filter(Boolean).sort((a, b) => a.code.localeCompare(b.code));
   const uses = all.length ? await pipe(all.map(c => ['GET', 'coupon:uses:' + c.code])) : [];
   res.json({ coupons: all.map((c, i) => ({ ...c, uses: parseInt(uses[i], 10) || 0 })) });
+}
+
+async function dealsApi(req, res) {
+  if (req.method === 'GET') return res.json({ deals: await loadDeals() });
+  if (req.method === 'PUT') {
+    const menu = await loadMenu();
+    const deal = cleanDeal(req.body.deal || {}, menu);
+    await cmd('HSET', 'deals', deal.id, JSON.stringify(deal));
+    return res.json({ deal, deals: await loadDeals() });
+  }
+  if (req.method === 'DELETE') {
+    const id = String(req.body.id || '');
+    await cmd('HDEL', 'deals', id);
+    return res.json({ deals: await loadDeals() });
+  }
+}
+
+async function customersApi(req, res) {
+  if (req.method !== 'GET') throw new HttpError(405, 'Method not allowed');
+  const phone = new URL(req.url, 'http://x').searchParams.get('phone');
+  if (phone) {
+    const cust = await lookupCustomer(phone);
+    if (!cust || !cust.exists) throw new HttpError(404, 'Customer not found.');
+    const orders = await getCustomerOrders(phone);
+    return res.json({ customer: cust, orders });
+  }
+  const customers = await listCustomers(0, 199);
+  const totalSpend = customers.reduce((s, c) => s + c.totalSpend, 0);
+  res.json({
+    customers,
+    totals: {
+      totalCustomers: customers.length,
+      repeatCustomers: customers.filter(c => c.orders > 1).length,
+      totalSpend: Math.round(totalSpend * 100) / 100
+    }
+  });
 }
 
 async function reportApi(req, res) {
@@ -62,6 +106,8 @@ module.exports = route(['GET', 'PUT', 'DELETE'], async (req, res) => {
   const action = new URL(req.url, 'http://x').pathname.replace(/\/+$/, '').split('/').pop();
   if (action === 'menu') return menuApi(req, res);
   if (action === 'coupons') return couponsApi(req, res);
+  if (action === 'deals') return dealsApi(req, res);
+  if (action === 'customers') return customersApi(req, res);
   if (action === 'report' && req.method === 'GET') return reportApi(req, res);
   throw new HttpError(404, 'Not found');
 });
