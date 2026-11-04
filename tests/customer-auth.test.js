@@ -5,9 +5,7 @@ process.env.BARISTA_PIN = '654321';
 const assert = require('assert');
 const { tableSig } = require('../api/_lib');
 const orders = require('../api/orders');
-const customerSession = require('../api/customer/session');
-const customerOtp = require('../api/customer/otp');
-const customerGoogle = require('../api/customer/google');
+const customer = require('../api/customer/[action]');
 const myOrders = require('../api/my-orders');
 
 const call = async (h, { method = 'GET', body, cookie, url = '/', ip = '1.1.1.1', origin } = {}) => {
@@ -22,7 +20,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
 (async () => {
   // 1. Unauthenticated session check
   await t('unauthenticated GET /api/customer/session returns loggedIn: false', async () => {
-    const r = await call(customerSession, { method: 'GET', ip: '9.9.9.1' });
+    const r = await call(customer, { method: 'GET', url: '/api/customer/session', ip: '9.9.9.1' });
     assert.equal(r.code, 200);
     assert.equal(r.body.loggedIn, false);
     assert.equal(r.body.user, null);
@@ -31,8 +29,8 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
   // 2. Google Sign-In via Session endpoint
   let rahulCookie = '';
   await t('POST /api/customer/session creates customer profile & session cookie for Google user', async () => {
-    const r = await call(customerSession, {
-      method: 'POST', ip: '9.9.9.2',
+    const r = await call(customer, {
+      method: 'POST', url: '/api/customer/session', ip: '9.9.9.2',
       body: { uid: 'google-uid-1001', email: 'rahul@gmail.com', name: 'Rahul Sharma', photoUrl: 'https://lh3.googleusercontent.com/test.jpg' }
     });
     assert.equal(r.code, 200);
@@ -46,7 +44,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
 
   // 3. Authenticated session check
   await t('GET /api/customer/session with cookie returns active logged-in user', async () => {
-    const r = await call(customerSession, { method: 'GET', cookie: rahulCookie, ip: '9.9.9.3' });
+    const r = await call(customer, { method: 'GET', url: '/api/customer/session', cookie: rahulCookie, ip: '9.9.9.3' });
     assert.equal(r.code, 200);
     assert.equal(r.body.loggedIn, true);
     assert.equal(r.body.user.name, 'Rahul Sharma');
@@ -89,8 +87,8 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
   // 6. Gmail OTP: Send OTP
   let devOtpCode = '';
   await t('POST /api/customer/otp action=send generates 6-digit OTP for email', async () => {
-    const r = await call(customerOtp, {
-      method: 'POST', ip: '9.9.9.6',
+    const r = await call(customer, {
+      method: 'POST', url: '/api/customer/otp', ip: '9.9.9.6',
       body: { action: 'send', email: 'priya@gmail.com' }
     });
     assert.equal(r.code, 200);
@@ -102,8 +100,8 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
 
   // 7. Gmail OTP: Verify with wrong OTP fails
   await t('POST /api/customer/otp action=verify with incorrect OTP returns 400', async () => {
-    const r = await call(customerOtp, {
-      method: 'POST', ip: '9.9.9.7',
+    const r = await call(customer, {
+      method: 'POST', url: '/api/customer/otp', ip: '9.9.9.7',
       body: { action: 'verify', email: 'priya@gmail.com', otp: '000000' }
     });
     assert.equal(r.code, 400);
@@ -113,8 +111,8 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
   // 8. Gmail OTP: Verify with correct OTP logs in user
   let priyaCookie = '';
   await t('POST /api/customer/otp action=verify with valid OTP creates session and cookie', async () => {
-    const r = await call(customerOtp, {
-      method: 'POST', ip: '9.9.9.8',
+    const r = await call(customer, {
+      method: 'POST', url: '/api/customer/otp', ip: '9.9.9.8',
       body: { action: 'verify', email: 'priya@gmail.com', otp: devOtpCode, name: 'Priya Verma' }
     });
     assert.equal(r.code, 200);
@@ -127,7 +125,6 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
 
   // 9. Google 1-Click: POST /api/customer/google with mock JWT token
   await t('POST /api/customer/google creates customer profile and session cookie', async () => {
-    // Generate a valid base64url JWT payload
     const mockPayload = Buffer.from(JSON.stringify({
       sub: 'google-sub-9988',
       email: 'amit@gmail.com',
@@ -136,8 +133,8 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     })).toString('base64url');
     const mockJwt = `eyJhbGciOiJIUzI1NiJ9.${mockPayload}.signature`;
 
-    const r = await call(customerGoogle, {
-      method: 'POST', ip: '9.9.9.9',
+    const r = await call(customer, {
+      method: 'POST', url: '/api/customer/google', ip: '9.9.9.9',
       body: { credential: mockJwt }
     });
     assert.equal(r.code, 200);
@@ -149,7 +146,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
 
   // 10. Logout clears session cookie
   await t('DELETE /api/customer/session clears cc_customer cookie', async () => {
-    const r = await call(customerSession, { method: 'DELETE', cookie: rahulCookie, ip: '9.9.9.10' });
+    const r = await call(customer, { method: 'DELETE', url: '/api/customer/session', cookie: rahulCookie, ip: '9.9.9.10' });
     assert.equal(r.code, 200);
     assert.equal(r.body.ok, true);
     const setCookie = r.headers['Set-Cookie'] || '';
