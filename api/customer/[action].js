@@ -62,7 +62,7 @@ async function sendEmailOtp(toEmail, otp) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'Coffee & Cravings <onboarding@resend.dev>',
+          from: process.env.EMAIL_FROM || 'Coffee & Cravings <login@coffeeandcravings.shop>',
           to: [toEmail],
           subject: `${otp} is your Coffee & Cravings sign-in code`,
           html: `
