@@ -1769,7 +1769,7 @@ function setAuthStatusMsg(msg, isError = false) {
 function initGoogleAuth() {
   if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) return;
   try {
-    const clientId = window.GOOGLE_CLIENT_ID;
+    const clientId = window.GOOGLE_CLIENT_ID || "377404973368-123d5bckj1lehthnjoilnt07udsvnn2m.apps.googleusercontent.com";
   const hasValidClient = clientId && typeof clientId === 'string' && !clientId.includes('dummy') && clientId.includes('.apps.googleusercontent.com');
   if (!hasValidClient) {
     const gContainer = document.getElementById('google-signin-btn-container');
