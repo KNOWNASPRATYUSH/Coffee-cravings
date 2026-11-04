@@ -1,0 +1,14 @@
+/* My Orders section */
+.my-orders-section {
+  min-height: 60vh;
+  padding: 40px 20px 60px;
+  background: #faf9f7;
+}
+.my-orders-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}

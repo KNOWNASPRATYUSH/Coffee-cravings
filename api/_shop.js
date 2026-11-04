@@ -251,6 +251,20 @@ async function getCustomerOrders(phone) {
   return Object.values(rawMap).map(parse).filter(Boolean).sort((a, b) => new Date(b.at) - new Date(a.at));
 }
 
+async function recordCouponUsed(phone, code, orderId) {
+  const p = cleanPhone(phone);
+  if (!p || p.length < 6 || !code) return;
+  await cmd('RPUSH', 'cust:coupons:' + p, JSON.stringify({ code, orderId, usedAt: new Date().toISOString() }));
+}
+
+async function getCustomerCoupons(phone) {
+  const p = cleanPhone(phone);
+  if (!p) return [];
+  const raw = await cmd('LRANGE', 'cust:coupons:' + p, 0, 49);
+  if (!Array.isArray(raw)) return [];
+  return raw.map(parse).filter(Boolean).reverse(); // most-recent first
+}
+
 // ---------- stats ----------
 const bump = () => cmd('INCR', 'orders:rev'); // staff screens only re-download orders when this changes
 
@@ -274,5 +288,6 @@ module.exports = {
   loadDeals, cleanDeal, publicDeal, applyDealsToCart,
   cleanCoupon, cleanCode, checkCoupon,
   cleanPhone, lookupCustomer, recordCustomerOrder, recordCustomerPayment, listCustomers, getCustomerOrders,
+  recordCouponUsed, getCustomerCoupons,
   bump, recordSale
 };

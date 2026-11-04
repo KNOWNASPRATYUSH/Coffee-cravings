@@ -5,7 +5,7 @@ const {
   ist, loadMenu, saveMenu, upsertItem,
   loadDeals, cleanDeal,
   cleanCoupon, cleanCode,
-  lookupCustomer, listCustomers, getCustomerOrders
+  lookupCustomer, listCustomers, getCustomerOrders, getCustomerCoupons
 } = require('../_shop');
 
 const parse = (raw) => { try { return JSON.parse(raw); } catch (e) { return null; } };
@@ -57,8 +57,8 @@ async function customersApi(req, res) {
   if (phone) {
     const cust = await lookupCustomer(phone);
     if (!cust || !cust.exists) throw new HttpError(404, 'Customer not found.');
-    const orders = await getCustomerOrders(phone);
-    return res.json({ customer: cust, orders });
+    const [orders, couponsUsed] = await Promise.all([getCustomerOrders(phone), getCustomerCoupons(phone)]);
+    return res.json({ customer: cust, orders, couponsUsed });
   }
   const customers = await listCustomers(0, 199);
   const totalSpend = customers.reduce((s, c) => s + c.totalSpend, 0);

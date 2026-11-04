@@ -5,6 +5,7 @@ process.env.BARISTA_PIN = '654321';
 const assert = require('assert');
 const orders = require('../api/orders'), config = require('../api/config'), session = require('../api/staff/session');
 const ownerAction = require('../api/owner/[action]'), customerApi = require('../api/customer');
+const myOrdersApi = require('../api/my-orders');
 
 const call = async (h, { method = 'GET', body, cookie, url = '/', ip = '1.1.1.1', origin } = {}) => {
   const res = { code: 200, headers: {}, body: null, setHeader(k, v) { this.headers[k] = v; }, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; } };
@@ -150,6 +151,54 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     assert.equal(detail.code, 200);
     assert.equal(detail.body.customer.name, 'Priya');
     assert(detail.body.orders.length >= 1, 'Should list orders placed by customer');
+  });
+
+  // ---------- 3. Coupon history per customer ----------
+  await t('coupon usage is recorded in customer coupon history', async () => {
+    // Priya used NEWBIE20 in test above — it should appear in her coupon history
+    const r = await call(customerApi, { url: '/api/customer?phone=9888877777', ip: '5.5.5.10' });
+    assert.equal(r.code, 200);
+    assert(Array.isArray(r.body.couponsUsed), 'couponsUsed should be an array');
+    assert(r.body.couponsUsed.length >= 1, 'Should have at least one coupon record');
+    const rec = r.body.couponsUsed[0];
+    assert.equal(rec.code, 'NEWBIE20');
+    assert(rec.orderId, 'Should have orderId');
+    assert(rec.usedAt, 'Should have usedAt timestamp');
+  });
+
+  await t('owner detail view includes customer coupon history', async () => {
+    const detail = await call(ownerAction, { url: '/api/owner/customers?phone=9888877777', cookie: owner.cookie });
+    assert.equal(detail.code, 200);
+    assert(Array.isArray(detail.body.couponsUsed), 'couponsUsed should be in owner detail');
+    assert(detail.body.couponsUsed.length >= 1);
+    assert.equal(detail.body.couponsUsed[0].code, 'NEWBIE20');
+  });
+
+  // ---------- 4. My Orders (live order tracker) ----------
+  await t('GET /api/my-orders returns order list for known phone', async () => {
+    // Priya placed an order with phone 9888877777 above
+    const r = await call(myOrdersApi, { url: '/api/my-orders?phone=9888877777', ip: '5.5.5.11' });
+    assert.equal(r.code, 200);
+    assert(Array.isArray(r.body.orders), 'Should return orders array');
+    assert(r.body.orders.length >= 1, 'Should have at least one order');
+    const o = r.body.orders[0];
+    assert(o.id, 'Order should have an id');
+    assert(o.status, 'Order should have a status');
+    assert(o.statusLabel, 'Order should have a human-readable statusLabel');
+    assert(typeof o.total === 'number', 'Order total should be a number');
+  });
+
+  await t('GET /api/my-orders returns empty array for unknown phone', async () => {
+    const r = await call(myOrdersApi, { url: '/api/my-orders?phone=9000000000', ip: '5.5.5.12' });
+    assert.equal(r.code, 200);
+    assert(Array.isArray(r.body.orders));
+    assert.equal(r.body.orders.length, 0);
+  });
+
+  await t('GET /api/my-orders rejects missing phone number', async () => {
+    const r = await call(myOrdersApi, { url: '/api/my-orders', ip: '5.5.5.13' });
+    assert.equal(r.code, 400);
+    assert(/phone/i.test(r.body.error));
   });
 
   console.log(`\n${n} CRM & Deals checks passed!`);

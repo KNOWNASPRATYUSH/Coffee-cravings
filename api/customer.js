@@ -1,6 +1,6 @@
 'use strict';
 const { HttpError, pipe, toObj, route, clientIp, cmd } = require('./_lib');
-const { lookupCustomer, cleanPhone } = require('./_shop');
+const { lookupCustomer, cleanPhone, getCustomerCoupons } = require('./_shop');
 
 const parse = (raw) => { try { return raw ? JSON.parse(raw) : null; } catch (e) { return null; } };
 
@@ -19,6 +19,7 @@ module.exports = route(['GET'], async (req, res) => {
 
   const cust = await lookupCustomer(phone);
   let welcomeCoupon = null;
+  let couponsUsed = [];
 
   if (!cust || cust.isNew) {
     // Check if phone has already used a welcome coupon
@@ -39,6 +40,10 @@ module.exports = route(['GET'], async (req, res) => {
     }
   }
 
+  if (cust && cust.exists) {
+    couponsUsed = await getCustomerCoupons(phone);
+  }
+
   res.json({
     phone,
     exists: !!(cust && cust.exists),
@@ -47,7 +52,8 @@ module.exports = route(['GET'], async (req, res) => {
     orders: (cust && cust.orders) || 0,
     paidOrders: (cust && cust.paidOrders) || 0,
     totalSpend: (cust && cust.totalSpend) || 0,
-    welcomeCoupon
+    welcomeCoupon,
+    couponsUsed
   });
 });
 

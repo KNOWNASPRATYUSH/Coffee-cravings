@@ -1,6 +1,6 @@
 'use strict';
 const { HttpError, cmd, pipe, toObj, route, clientIp, tableSigOk, MAX_TABLE, ORDER_TTL_S } = require('./_lib');
-const { text, loadMenu, loadDeals, applyDealsToCart, cleanCode, checkCoupon, cleanPhone, recordCustomerOrder, bump } = require('./_shop');
+const { text, loadMenu, loadDeals, applyDealsToCart, cleanCode, checkCoupon, cleanPhone, recordCustomerOrder, recordCouponUsed, bump } = require('./_shop');
 const pay = require('./_pay');
 
 // Public endpoint used by the customer site. Prices, availability and discounts are always decided here, never by the browser.
@@ -101,6 +101,7 @@ module.exports = route(['POST'], async (req, res) => {
     // Record customer order in customer database
     if (phone) {
       await recordCustomerOrder(phone, order.customerName, order.id, totalP, false);
+      if (couponCode) await recordCouponUsed(phone, couponCode, order.id);
     }
 
     if (!online) await bump();

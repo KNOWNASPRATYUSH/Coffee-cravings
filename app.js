@@ -78,6 +78,7 @@ let currentTable = 0; // 0 = Walk-in/takeaway, 1-12 = Table number
 let cart = []; // [{ id, qty, note }]
 let currentPaymentMethod = 'digital'; // 'digital' (UPI) or 'counter' (Cash)
 let orderSearchFilter = '';
+let myOrdersPoller = null; // setInterval handle for live order tracking
 let orderCategoryFilter = 'all';
 let orderSortFilter = 'popular';
 let selectedQrPlacardTable = 1;
@@ -166,6 +167,12 @@ function navigateTo(viewName) {
   currentView = viewName;
   window.location.hash = viewName;
 
+  // Stop order polling when leaving that view
+  if (viewName !== 'my-orders' && myOrdersPoller) {
+    clearInterval(myOrdersPoller);
+    myOrdersPoller = null;
+  }
+
   // Update Nav links active state
   document.querySelectorAll('.nav-item').forEach(item => {
     if (item.getAttribute('data-nav') === viewName) {
@@ -179,6 +186,10 @@ function navigateTo(viewName) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   switch (viewName) {
+    case 'my-orders':
+      appContainer.innerHTML = renderMyOrdersPage();
+      startMyOrdersPolling();
+      break;
     case 'home':
       appContainer.innerHTML = renderHomePage();
       break;
@@ -1219,6 +1230,14 @@ async function submitFinalOrder() {
   }
 
   showToast(`Order ${orderId} submitted! Barista alerted.`, 'success');
+
+  // Automatically navigate to live order tracker after a short delay
+  setTimeout(() => {
+    // Close checkout modal first
+    const modal = document.getElementById('checkout-modal');
+    if (modal) modal.classList.remove('open');
+    navigateTo('my-orders');
+  }, 2800);
 }
 
 // =============================================================================
@@ -1377,6 +1396,174 @@ function toggleMobileMenu(force) {
     drawer.classList.remove('open');
     overlay.classList.remove('open');
   }
+}
+
+// =============================================================================
+// 10. MY ORDERS — LIVE ORDER TRACKER
+// =============================================================================
+const ORDER_STATUS_ICON = {
+  awaiting_payment: '⏳',
+  new: '🧾',
+  preparing: '☕',
+  ready: '✅',
+  completed: '✓'
+};
+const ORDER_STATUS_COLOR = {
+  awaiting_payment: '#d97706',
+  new: '#2563eb',
+  preparing: '#7c3aed',
+  ready: '#059669',
+  completed: '#6b7280'
+};
+
+function renderMyOrdersPage() {
+  return `
+    <section class="my-orders-section">
+      <div class="my-orders-container">
+        <h2 class="section-title" style="text-align:center; margin-bottom:8px;">📦 My Orders</h2>
+        <p style="text-align:center; color:#6b7280; margin-bottom:24px; font-size:14px;">Track your live order status in real time</p>
+
+        <div id="my-orders-phone-form" style="${customerPhone ? 'display:none' : ''}">
+          <div style="max-width:360px; margin:0 auto; background:#fff; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+            <label style="display:block; font-size:14px; font-weight:600; margin-bottom:8px; color:#374151;">📱 Enter your phone number</label>
+            <input id="tracker-phone-input" type="tel" inputmode="numeric" placeholder="e.g. 9876543210"
+              style="width:100%; border:1.5px solid #d1d5db; border-radius:8px; padding:10px 14px; font-size:15px; outline:none; box-sizing:border-box;" />
+            <button onclick="setTrackerPhone()" style="width:100%; margin-top:12px; background:#92400e; color:#fff; border:none; border-radius:8px; padding:12px; font-size:15px; font-weight:600; cursor:pointer;">Track My Orders</button>
+          </div>
+        </div>
+
+        <div id="my-orders-list" style="${customerPhone ? '' : 'display:none'}">
+          <div style="text-align:center; margin-bottom:16px;">
+            <span style="font-size:13px; color:#6b7280;">Tracking orders for <strong id="tracker-phone-display"></strong></span>
+            <button onclick="clearTrackerPhone()" style="margin-left:12px; font-size:12px; color:#92400e; background:none; border:none; cursor:pointer; text-decoration:underline;">Change</button>
+          </div>
+          <div id="my-orders-cards" style="max-width:520px; margin:0 auto;">
+            <div style="text-align:center; padding:40px; color:#9ca3af;">Loading your orders…</div>
+          </div>
+          <div style="text-align:center; margin-top:16px;">
+            <span id="my-orders-refresh-note" style="font-size:12px; color:#9ca3af;">Auto-refreshes every 8 seconds</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function setTrackerPhone() {
+  const input = document.getElementById('tracker-phone-input');
+  const val = (input ? input.value : '').replace(/[^0-9]/g, '');
+  if (val.length < 6) { showToast('Please enter a valid phone number.', 'error'); return; }
+  customerPhone = val;
+  try { localStorage.setItem('cc_cust_phone', val); } catch (e) {}
+  document.getElementById('my-orders-phone-form').style.display = 'none';
+  document.getElementById('my-orders-list').style.display = '';
+  loadAndRenderMyOrders();
+  startMyOrdersPolling();
+}
+
+function clearTrackerPhone() {
+  customerPhone = '';
+  try { localStorage.removeItem('cc_cust_phone'); } catch (e) {}
+  if (myOrdersPoller) { clearInterval(myOrdersPoller); myOrdersPoller = null; }
+  navigateTo('my-orders');
+}
+
+async function loadAndRenderMyOrders() {
+  const phoneEl = document.getElementById('tracker-phone-display');
+  if (phoneEl) phoneEl.textContent = customerPhone;
+  const container = document.getElementById('my-orders-cards');
+  if (!container || !customerPhone) return;
+
+  try {
+    const r = await fetch('/api/my-orders?phone=' + encodeURIComponent(customerPhone));
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      container.innerHTML = `<div style="text-align:center; padding:30px; color:#b91c1c;">${d.error || 'Could not load orders.'}</div>`;
+      return;
+    }
+    const { orders } = await r.json();
+
+    if (!orders || !orders.length) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:40px; color:#9ca3af;">
+          <div style="font-size:40px; margin-bottom:12px;">☕</div>
+          <p style="margin:0 0 8px;">No orders found for this number.</p>
+          <p style="margin:0; font-size:13px;">Orders placed with this phone appear here automatically.</p>
+          <button onclick="navigateTo('order')" style="margin-top:16px; background:#92400e; color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:14px; font-weight:600; cursor:pointer;">Order Now</button>
+        </div>`;
+      return;
+    }
+
+    const allDone = orders.every(o => o.status === 'completed' || o.expired);
+
+    container.innerHTML = orders.map(o => {
+      const icon = ORDER_STATUS_ICON[o.status] || '•';
+      const color = ORDER_STATUS_COLOR[o.status] || '#6b7280';
+      const isActive = !['completed'].includes(o.status) && !o.expired;
+      const itemsHtml = (o.items || []).map(it =>
+        `<div style="display:flex; justify-content:space-between; font-size:13px; color:#374151; margin-bottom:3px;">
+          <span>${it.qty}× ${it.name}</span>
+          <span>₹${(it.price * it.qty).toFixed(2)}</span>
+        </div>`
+      ).join('');
+      const tableLabel = o.table > 0 ? `Table 0${o.table}` : 'Takeaway';
+      const payBadge = o.paymentStatus === 'PAID'
+        ? `<span style="background:#d1fae5; color:#065f46; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">✓ PAID</span>`
+        : o.paymentStatus === 'PENDING'
+          ? `<span style="background:#fef3c7; color:#92400e; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">⏳ Pending</span>`
+          : `<span style="background:#fee2e2; color:#991b1b; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">💵 Pay at counter</span>`;
+
+      // animated pulse for active orders
+      const pulseStyle = isActive ? 'animation:pulse-dot 1.4s infinite;' : '';
+
+      return `
+        <div style="background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,0.08); margin-bottom:16px; overflow:hidden; border-left:4px solid ${color};">
+          <div style="padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f3f4f6;">
+            <div>
+              <span style="font-weight:700; color:#1f2937; font-size:15px;">${o.id}</span>
+              <span style="margin-left:10px; font-size:12px; color:#6b7280;">${tableLabel}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              ${payBadge}
+            </div>
+          </div>
+          <div style="padding:12px 16px; background:#fafaf9;">
+            ${itemsHtml || '<span style="color:#9ca3af; font-size:13px;">Items not available</span>'}
+          </div>
+          <div style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:22px; ${pulseStyle}">${icon}</span>
+              <div>
+                <div style="font-weight:700; color:${color}; font-size:14px;">${o.statusLabel || o.status}</div>
+                ${isActive ? '<div style="font-size:11px; color:#9ca3af;">Live update</div>' : ''}
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:700; color:#1f2937; font-size:15px;">₹${Number(o.total).toFixed(2)}</div>
+              <div style="font-size:11px; color:#9ca3af;">${o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}) : ''}</div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // If all done, slow down / stop polling
+    if (allDone && myOrdersPoller) {
+      clearInterval(myOrdersPoller);
+      myOrdersPoller = null;
+      const note = document.getElementById('my-orders-refresh-note');
+      if (note) note.textContent = 'All orders completed ✓';
+    }
+  } catch (e) {
+    const container2 = document.getElementById('my-orders-cards');
+    if (container2) container2.innerHTML = `<div style="text-align:center; padding:30px; color:#9ca3af;">Could not reach server. Retrying…</div>`;
+  }
+}
+
+function startMyOrdersPolling() {
+  if (!customerPhone) return;
+  loadAndRenderMyOrders(); // immediate load
+  if (myOrdersPoller) clearInterval(myOrdersPoller);
+  myOrdersPoller = setInterval(loadAndRenderMyOrders, 8000);
 }
 
 // Toast System

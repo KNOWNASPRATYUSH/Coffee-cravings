@@ -35,6 +35,8 @@ function memExec(c) {
       const start = Number(a[0]), stop = Number(a[1]);
       return stop === -1 ? sorted.slice(start) : sorted.slice(start, stop + 1);
     }
+    case 'RPUSH': { const l = mem.h.get(k + '__list') || []; l.push(...a); mem.h.set(k + '__list', l); return l.length; }
+    case 'LRANGE': { const l = mem.h.get(k + '__list') || []; const s = Number(a[0]); const e = Number(a[1]); return e === -1 ? l.slice(s) : l.slice(s, e + 1); }
     case 'ZREMRANGEBYSCORE': { const z = mem.z.get(k); if (z) for (const [m, s] of z) if (s <= Number(String(a[1]).replace('(', ''))) z.delete(m); return 1; }
     default: throw new Error('memExec: unsupported ' + op);
   }
