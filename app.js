@@ -1781,7 +1781,11 @@ async function sendPhoneOtp() {
     document.getElementById('phone-auth-step2').style.display = 'block';
     setAuthStatusMsg(`OTP sent to +91 ${phone}! Check SMS.`);
   } catch (err) {
-    setAuthStatusMsg(err.message || 'Could not send OTP.', true);
+    if (err.code === 'auth/billing-not-enabled' || /billing-not-enabled/i.test(err.message || '')) {
+      setAuthStatusMsg('SMS requires Firebase Blaze or Test Number. Please use "Continue with Google" for instant free sign-in!', true);
+    } else {
+      setAuthStatusMsg(err.message || 'Could not send OTP.', true);
+    }
   }
 }
 
