@@ -164,3 +164,4 @@ module.exports = route(['POST'], async (req, res) => {
 
   throw new HttpError(400, 'Invalid action. Use "send" or "verify".');
 });
+

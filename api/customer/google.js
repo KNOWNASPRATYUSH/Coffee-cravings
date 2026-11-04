@@ -68,3 +68,4 @@ module.exports = route(['POST'], async (req, res) => {
 
   return res.json({ ok: true, user });
 });
+
