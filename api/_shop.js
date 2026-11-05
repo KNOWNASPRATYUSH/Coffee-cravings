@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 'use strict';
 // Menu, coupons, deals, customer database and sales statistics (all stored in Redis; the menu falls back to menu-data.js until the owner edits it).
 const { cmd, pipe, HttpError, ORDER_TTL_S, toObj } = require('./_lib');
@@ -71,7 +72,7 @@ function cleanDeal(raw, menu) {
   if (!menu.some(m => m.id === freeItemId)) throw new HttpError(400, 'Selected "Free" product is not in the menu.');
   if (!(freeQty >= 1 && freeQty <= 20)) throw new HttpError(400, 'Free quantity must be between 1 and 20.');
 
-  const id = raw.id ? String(raw.id).trim() : 'deal-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+  const id = raw.id ? String(raw.id).trim() : 'deal-' + Date.now().toString(36) + '-' + crypto.randomBytes(3).toString('hex');
   return { id, name, buyItemId, buyQty, freeItemId, freeQty, active: raw.active !== false };
 }
 

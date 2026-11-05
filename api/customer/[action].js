@@ -173,7 +173,7 @@ async function handleOtp(req, res) {
       throw new HttpError(429, 'Too many OTP requests. Please wait a few minutes.');
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = sha(otp);
 
     await pipe([

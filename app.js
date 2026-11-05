@@ -1193,7 +1193,15 @@ async function submitFinalOrder() {
   const custName = document.getElementById('cust-name-input')?.value.trim() || 'Guest';
   const custPhone = cleanPhone;
   const specialNotes = document.getElementById('order-special-notes')?.value.trim() || '';
-  if (!orderKey) orderKey = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2);
+  if (!orderKey) {
+    if (window.crypto && crypto.randomUUID) {
+      orderKey = crypto.randomUUID();
+    } else {
+      const arr = new Uint32Array(2);
+      if (window.crypto && crypto.getRandomValues) window.crypto.getRandomValues(arr);
+      orderKey = Date.now() + '-' + (arr[0] ? arr[0].toString(36) + arr[1].toString(36) : Date.now().toString(36));
+    }
+  }
 
   let order;
   try {
@@ -1824,7 +1832,7 @@ function initGoogleAuth() {
   if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) return;
   try {
     const clientId = window.GOOGLE_CLIENT_ID || "377404973368-123d5bckj1lehthnjoilnt07udsvnn2m.apps.googleusercontent.com";
-  const hasValidClient = clientId && typeof clientId === 'string' && !clientId.includes('dummy') && clientId.includes('.apps.googleusercontent.com');
+  const hasValidClient = clientId && typeof clientId === 'string' && !clientId.includes('dummy') && clientId.endsWith('.apps.googleusercontent.com');
   if (!hasValidClient) {
     const gContainer = document.getElementById('google-signin-btn-container');
     const manualBtn = document.getElementById('google-auth-btn');

@@ -65,7 +65,7 @@ function secret() {
   const s = process.env.SESSION_SECRET;
   if (s && s.length >= 32) return s;
   if (REDIS_TOKEN && REDIS_TOKEN.length >= 16) {
-    return crypto.createHash('sha256').update('cc-salt:' + REDIS_TOKEN).digest('hex');
+    return crypto.pbkdf2Sync(REDIS_TOKEN, 'cc-salt-2026', 100000, 32, 'sha256').toString('hex');
   }
   return 'c0ffee-cr4vings-pr0ducti0n-s3cur3-s3cr3t-k3y-2026';
 }
