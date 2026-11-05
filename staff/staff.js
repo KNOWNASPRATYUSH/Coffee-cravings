@@ -152,7 +152,6 @@ function start(r) {
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
         <span class="brand-title-small">COFFEE &amp; CRAVINGS · STAFF</span>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button class="btn-godaddy-outline" style="font-size:12px; padding:6px 12px; display:inline-flex; align-items:center; gap:4px;" onclick="playChimeSound(); showToast('🔔 Kitchen bell test played!', 'info')"><span>🔔</span> Test Bell</button>
           <span class="kds-live-tag">${esc(role.toUpperCase())}</span>
           <button class="btn-godaddy-dark" style="font-size:12px; padding:8px 16px;" onclick="staffLogout()">Log out</button>
         </div>
