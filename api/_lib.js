@@ -18,6 +18,7 @@ function memExec(c) {
   const [op, k, ...a] = c;
   switch (op) {
     case 'GET': return mem.kv.has(k) ? mem.kv.get(k) : null;
+    case 'MGET': return [k, ...a].map(key => mem.kv.has(key) ? mem.kv.get(key) : null);
     case 'SET': { if (a.includes('NX') && mem.kv.has(k)) return null; mem.kv.set(k, String(a[0])); return 'OK'; }
     case 'DEL': mem.kv.delete(k); mem.h.delete(k); return 1;
     case 'INCR': { const n = (parseInt(mem.kv.get(k), 10) || 0) + 1; mem.kv.set(k, String(n)); return n; }
@@ -76,13 +77,43 @@ function pins() {
   }
   return { owner, barista };
 }
+
+let _cachedPins = null;
+let _cachedPinsExpiry = 0;
+
+async function getPins() {
+  const now = Date.now();
+  if (_cachedPins && now < _cachedPinsExpiry) {
+    return _cachedPins;
+  }
+  const defaultPins = pins();
+  try {
+    const res = await pipe([['GET', 'cfg:pin:owner'], ['GET', 'cfg:pin:barista']]);
+    const owner = (res && res[0] && /^\d{4,12}$/.test(res[0])) ? res[0] : defaultPins.owner;
+    const barista = (res && res[1] && /^\d{4,12}$/.test(res[1])) ? res[1] : defaultPins.barista;
+    _cachedPins = { owner, barista };
+    _cachedPinsExpiry = now + 5000;
+    return _cachedPins;
+  } catch (e) {
+    return defaultPins;
+  }
+}
+
+function updateCachedPins(p) {
+  _cachedPins = { ...(_cachedPins || pins()), ...p };
+  _cachedPinsExpiry = Date.now() + 60000;
+}
+
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest();
 const safeEq = (a, b) => crypto.timingSafeEqual(sha(a), sha(b));
 const mac = (body) => crypto.createHmac('sha256', secret()).update(body).digest('base64url');
-const pinVersion = (role) => sha(secret() + ':' + pins()[role]).toString('hex').slice(0, 12); // changing a PIN kills old sessions
+const pinVersion = (role, customPin) => {
+  const p = customPin || (_cachedPins ? _cachedPins[role] : pins()[role]);
+  return sha(secret() + ':' + p).toString('hex').slice(0, 12);
+};
 
-function issueToken(role) {
-  const body = Buffer.from(JSON.stringify({ role, exp: Date.now() + SESSION_MS, pv: pinVersion(role) })).toString('base64url');
+function issueToken(role, customPin) {
+  const body = Buffer.from(JSON.stringify({ role, exp: Date.now() + SESSION_MS, pv: pinVersion(role, customPin) })).toString('base64url');
   return body + '.' + mac(body);
 }
 function readToken(token) {
@@ -190,6 +221,6 @@ function route(methods, fn) {
   };
 }
 
-module.exports = { HttpError, cmd, pipe, toObj, pins, safeEq, issueToken, readToken, cookieOf, setSessionCookie, requireStaff,
+module.exports = { HttpError, cmd, pipe, toObj, pins, getPins, updateCachedPins, safeEq, issueToken, readToken, cookieOf, setSessionCookie, requireStaff,
   CUSTOMER_SESSION_MS, issueCustomerToken, readCustomerToken, customerOf, setCustomerCookie, clearCustomerCookie,
   tableSig, tableSigOk, clientIp, route, MAX_TABLE, ORDER_TTL_S, SESSION_MS, _mem: mem };

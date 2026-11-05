@@ -1,6 +1,6 @@
 'use strict';
 // Owner-only admin API: /api/owner/menu, /api/owner/coupons, /api/owner/deals, /api/owner/customers, /api/owner/report
-const { HttpError, cmd, pipe, toObj, route, requireStaff } = require('../_lib');
+const { HttpError, cmd, pipe, toObj, route, requireStaff, getPins, updateCachedPins, safeEq, issueToken, setSessionCookie, SESSION_MS } = require('../_lib');
 const {
   ist, loadMenu, saveMenu, upsertItem,
   loadDeals, cleanDeal,
@@ -101,6 +101,61 @@ async function reportApi(req, res) {
   });
 }
 
+
+async function securityApi(req, res) {
+  const activePins = await getPins();
+  if (req.method === 'GET') {
+    const raw = await pipe([['GET', 'cfg:pin:owner'], ['GET', 'cfg:pin:barista']]);
+    return res.json({
+      hasCustomOwnerPin: Boolean(raw && raw[0]),
+      hasCustomBaristaPin: Boolean(raw && raw[1])
+    });
+  }
+  if (req.method === 'PUT') {
+    const currentPin = String(req.body.currentPin || '').trim();
+    if (!currentPin) throw new HttpError(400, 'Current Owner PIN is required.');
+    if (!safeEq(currentPin, activePins.owner)) throw new HttpError(401, 'Current Owner PIN is incorrect.');
+
+    const pinRegex = /^\d{4,12}$/;
+    const newOwnerPin = req.body.newOwnerPin !== undefined && req.body.newOwnerPin !== null && String(req.body.newOwnerPin).trim() !== ''
+      ? String(req.body.newOwnerPin).trim() : null;
+    const newBaristaPin = req.body.newBaristaPin !== undefined && req.body.newBaristaPin !== null && String(req.body.newBaristaPin).trim() !== ''
+      ? String(req.body.newBaristaPin).trim() : null;
+
+    if (!newOwnerPin && !newBaristaPin) {
+      throw new HttpError(400, 'Please provide a new Owner PIN or Staff PIN.');
+    }
+    if (newOwnerPin && !pinRegex.test(newOwnerPin)) {
+      throw new HttpError(400, 'New Owner PIN must be 4 to 12 digits (numeric only).');
+    }
+    if (newBaristaPin && !pinRegex.test(newBaristaPin)) {
+      throw new HttpError(400, 'New Staff PIN must be 4 to 12 digits (numeric only).');
+    }
+
+    const updates = {};
+    if (newOwnerPin) {
+      await cmd('SET', 'cfg:pin:owner', newOwnerPin);
+      updates.owner = newOwnerPin;
+    }
+    if (newBaristaPin) {
+      await cmd('SET', 'cfg:pin:barista', newBaristaPin);
+      updates.barista = newBaristaPin;
+    }
+    updateCachedPins(updates);
+
+    const finalPins = await getPins();
+    setSessionCookie(res, issueToken('owner', finalPins.owner), Math.floor(SESSION_MS / 1000));
+
+    return res.json({
+      ok: true,
+      message: 'PINs updated successfully.',
+      ownerPinUpdated: Boolean(newOwnerPin),
+      baristaPinUpdated: Boolean(newBaristaPin)
+    });
+  }
+  throw new HttpError(405, 'Method not allowed');
+}
+
 module.exports = route(['GET', 'PUT', 'DELETE'], async (req, res) => {
   requireStaff(req, ['owner']);
   const action = new URL(req.url, 'http://x').pathname.replace(/\/+$/, '').split('/').pop();
@@ -108,6 +163,7 @@ module.exports = route(['GET', 'PUT', 'DELETE'], async (req, res) => {
   if (action === 'coupons') return couponsApi(req, res);
   if (action === 'deals') return dealsApi(req, res);
   if (action === 'customers') return customersApi(req, res);
+  if (action === 'security') return securityApi(req, res);
   if (action === 'report' && req.method === 'GET') return reportApi(req, res);
   throw new HttpError(404, 'Not found');
 });

@@ -92,6 +92,59 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
     await call(staff, { method: 'PATCH', cookie: B, body: { id: first.orders[0].id, status: 'ready' } });
     assert.equal((await call(staff, { cookie: B, url: '/?rev=' + first.rev })).body.unchanged, undefined);
   });
+  await t('owner security API: change Owner and Staff PINs with verification and session refresh', async () => {
+    // 1. GET status
+    const initialSec = await api('security');
+    assert.equal(initialSec.code, 200);
+
+    // 2. PUT without current PIN -> 400
+    assert.equal((await api('security', { method: 'PUT', body: { newOwnerPin: '998877' } })).code, 400);
+
+    // 3. PUT with wrong current PIN -> 401
+    assert.equal((await api('security', { method: 'PUT', body: { currentPin: '0000', newOwnerPin: '998877' } })).code, 401);
+
+    // 4. PUT with invalid pin format (e.g. letters or too short) -> 400
+    assert.equal((await api('security', { method: 'PUT', body: { currentPin: '8044', newOwnerPin: 'abc' } })).code, 400);
+    assert.equal((await api('security', { method: 'PUT', body: { currentPin: '8044', newOwnerPin: '12' } })).code, 400);
+
+    // 5. Valid update of both Owner and Barista PIN
+    const updateRes = await api('security', {
+      method: 'PUT',
+      body: { currentPin: '8044', newOwnerPin: '998877', newBaristaPin: '334455' }
+    });
+    assert.equal(updateRes.code, 200);
+    assert.equal(updateRes.body.ok, true);
+    assert(updateRes.headers['Set-Cookie']); // refreshed session cookie issued
+
+    // 6. Old Owner PIN "8044" is now rejected
+    const oldLogin = await call(session, { method: 'POST', body: { pin: '8044' }, ip: '2.0.0.9' });
+    assert.equal(oldLogin.code, 401);
+
+    // 7. New Owner PIN "998877" succeeds
+    const newOwnerLogin = await call(session, { method: 'POST', body: { pin: '998877' }, ip: '2.0.0.9' });
+    assert.equal(newOwnerLogin.code, 200);
+    assert.equal(newOwnerLogin.body.role, 'owner');
+
+    // 8. Old Barista PIN "0508" is now rejected
+    const oldBaristaLogin = await call(session, { method: 'POST', body: { pin: '0508' }, ip: '2.0.0.9' });
+    assert.equal(oldBaristaLogin.code, 401);
+
+    // 9. New Barista PIN "334455" succeeds
+    const newBaristaLogin = await call(session, { method: 'POST', body: { pin: '334455' }, ip: '2.0.0.9' });
+    assert.equal(newBaristaLogin.code, 200);
+    assert.equal(newBaristaLogin.body.role, 'barista');
+
+    // 10. Revert PINs back so remaining tests/runs have default PINs
+    const newOwnerCookie = newOwnerLogin.headers['Set-Cookie'].split(';')[0];
+    const revertRes = await call(owner, {
+      url: '/api/owner/security',
+      method: 'PUT',
+      cookie: newOwnerCookie,
+      body: { currentPin: '998877', newOwnerPin: '8044', newBaristaPin: '0508' }
+    });
+    assert.equal(revertRes.code, 200);
+  });
+
   await t('sales report counts only PAID orders, once, with item + payment breakdown', async () => {
     const before = (await api('report?days=1')).body.totals;
     const o = (await order([{ id: 'cappuccino', qty: 2 }, { id: 'americano', qty: 1 }])).body.order; // 387 + 19.35 GST = 406.35

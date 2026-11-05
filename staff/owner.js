@@ -312,8 +312,18 @@ function drawCustomers(view, totals) {
       <div style="${CARD}"><div style="font-size:12px; color:#666;">Customer Lifetime Spend</div><div style="font-size:24px; font-weight:600; margin-top:4px;">${rs(t.totalSpend)}</div></div>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-      <input type="text" id="cust-search" placeholder="Search customer by phone or name…" style="${INPUT} max-width:320px;" value="${esc(customerSearch)}" oninput="customerSearch=this.value; drawCustomers(document.getElementById('staff-view'))" />
-      <span style="font-size:13px; color:#666;">Showing ${filtered.length} of ${adminCustomers.length} customers</span>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; flex:1; max-width:440px;">
+        <input type="text" id="cust-search" placeholder="Search customer by phone or name…" style="${INPUT} max-width:280px;" value="${esc(customerSearch)}" oninput="customerSearch=this.value; drawCustomers(document.getElementById('staff-view'))" />
+        <span style="font-size:13px; color:#666;">${filtered.length} of ${adminCustomers.length}</span>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn-godaddy-outline" style="${SMALL_BTN} display:inline-flex; align-items:center; gap:5px;" onclick="downloadCustomerCsv()">
+          <span>📥</span> Download Excel (CSV)
+        </button>
+        <button class="btn-godaddy-outline" style="${SMALL_BTN} display:inline-flex; align-items:center; gap:5px;" onclick="printCustomerReport()">
+          <span>📄</span> Export / Print PDF
+        </button>
+      </div>
     </div>
     <div style="${CARD} padding:0; overflow-x:auto;">
       <table style="width:100%; border-collapse:collapse; font-size:13px; min-width:600px;">
@@ -383,5 +393,223 @@ async function viewCustomerHistory(phone) {
       </div>`);
   } catch (e) {
     openModal(`<p style="color:#b91c1c;">${esc(e.message)}</p><button class="btn-godaddy-outline" style="${SMALL_BTN}" onclick="closeModal()">Close</button>`);
+  }
+}
+
+
+/* ---------------- Customer Export (Excel & PDF) ---------------- */
+function downloadCustomerCsv() {
+  if (!adminCustomers || !adminCustomers.length) {
+    showToast('No customer records to export.', 'info');
+    return;
+  }
+  const headers = ['Customer Name', 'Phone Number', 'Total Orders', 'Paid Orders', 'Lifetime Spend (INR)', 'Tier', 'Last Visit', 'First Seen'];
+  const escCsv = (v) => {
+    if (v === null || v === undefined) return '""';
+    const s = String(v).replace(/"/g, '""');
+    return '"' + s + '"';
+  };
+
+  const getTier = (orders) => orders >= 5 ? 'VIP' : orders >= 2 ? 'Regular' : 'New';
+
+  const rows = adminCustomers.map(c => [
+    escCsv(c.name || 'Guest'),
+    '="' + String(c.phone || '').replace(/"/g, '""') + '"',
+    c.orders || 0,
+    c.paidOrders || 0,
+    (Number(c.totalSpend) || 0).toFixed(2),
+    escCsv(getTier(c.orders || 0)),
+    escCsv(c.lastSeen ? new Date(c.lastSeen).toLocaleString('en-IN') : ''),
+    escCsv(c.firstSeen ? new Date(c.firstSeen).toLocaleString('en-IN') : '')
+  ].join(','));
+
+  const csvContent = '\uFEFF' + [headers.map(escCsv).join(','), ...rows].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  a.download = 'Coffee_Cravings_Customers_' + dateStr + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Customer database exported to CSV successfully!', 'success');
+}
+
+function printCustomerReport() {
+  if (!adminCustomers || !adminCustomers.length) {
+    showToast('No customer records to export.', 'info');
+    return;
+  }
+  const win = window.open('', '_blank');
+  if (!win) {
+    showToast('Popup blocked. Please allow popups to view printable PDF.', 'error');
+    return;
+  }
+  const dateStr = new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
+  const getTier = (orders) => orders >= 5 ? 'VIP' : orders >= 2 ? 'Regular' : 'New';
+  const totalRev = adminCustomers.reduce((s, c) => s + (Number(c.totalSpend) || 0), 0);
+
+  const rowsHtml = adminCustomers.map((c, i) => `
+    <tr>
+      <td style="text-align:center;">${i + 1}</td>
+      <td><b>${esc(c.name || 'Guest')}</b></td>
+      <td style="font-family:monospace;">${esc(c.phone || '—')}</td>
+      <td>${c.orders || 0} (${c.paidOrders || 0} paid)</td>
+      <td style="font-weight:600;">₹${(Number(c.totalSpend) || 0).toFixed(2)}</td>
+      <td>${getTier(c.orders || 0)}</td>
+      <td style="color:#555;">${c.lastSeen ? new Date(c.lastSeen).toLocaleDateString('en-IN') : '—'}</td>
+    </tr>
+  `).join('');
+
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Coffee & Cravings - Customers Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; color: #111; margin: 0; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #222; padding-bottom: 12px; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .stats { display: flex; gap: 20px; margin-bottom: 16px; font-size: 13px; background: #f8f8f8; padding: 10px 14px; border-radius: 6px; }
+    .stats b { color: #000; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: left; }
+    th { background: #f0f0f0; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+    tr:nth-child(even) { background: #fafafa; }
+    .actions { margin-bottom: 16px; }
+    .btn { background: #008272; color: #fff; border: none; padding: 8px 18px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; }
+    @media print {
+      .actions { display: none; }
+      body { padding: 0; }
+      @page { margin: 1cm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions">
+    <button class="btn" onclick="window.print()">🖨️ Print or Save as PDF</button>
+  </div>
+  <div class="header">
+    <div>
+      <h1>Coffee & Cravings</h1>
+      <div style="font-size:14px; color:#555;">Customer Database & Directory</div>
+    </div>
+    <div style="text-align:right; font-size:12px; color:#666;">
+      <div>Generated: ${dateStr}</div>
+      <div>Total Records: <b>${adminCustomers.length}</b></div>
+    </div>
+  </div>
+  <div class="stats">
+    <div>Total Guests: <b>${adminCustomers.length}</b></div>
+    <div>Total Orders: <b>${adminCustomers.reduce((s, c) => s + (c.orders || 0), 0)}</b></div>
+    <div>Total Revenue: <b>₹${totalRev.toFixed(2)}</b></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:28px; text-align:center;">#</th>
+        <th>Customer Name</th>
+        <th>Phone Number</th>
+        <th>Orders Placed</th>
+        <th>Lifetime Spend</th>
+        <th>Tier</th>
+        <th>Last Visit</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+  </table>
+</body>
+</html>`);
+  win.document.close();
+}
+
+/* ---------------- Security & PIN Management ---------------- */
+async function renderSecuritySettings(view) {
+  view.innerHTML = '<p class="story-text">Loading security settings…</p>';
+  try {
+    const sec = await api('/api/owner/security');
+    view.innerHTML = `
+      <div style="max-width:560px;">
+        <h3 class="section-heading-serif" style="font-size:22px; margin:0 0 6px;">Portal PINs & Security</h3>
+        <p style="font-size:13px; color:#666; margin:0 0 18px;">
+          Update access PINs for the Owner Portal and Barista (Staff) Portal. Changing either PIN takes effect instantly and revokes active sessions on other devices.
+        </p>
+
+        <div style="${CARD} margin-bottom:16px;">
+          <div style="font-size:13px; color:#047857; background:#ecfdf5; border:1px solid #a7f3d0; padding:10px 14px; border-radius:6px; margin-bottom:16px;">
+            🔒 <b>Security Active:</b> Dynamic PINs are encrypted and stored in your secure database.
+            ${sec.hasCustomOwnerPin ? '<br/>• Custom Owner PIN is currently configured.' : ''}
+            ${sec.hasCustomBaristaPin ? '<br/>• Custom Staff PIN is currently configured.' : ''}
+          </div>
+
+          <form onsubmit="handleUpdatePins(event)">
+            <div style="margin-bottom:14px;">
+              <label style="display:block; font-size:12px; font-weight:600; text-transform:uppercase; color:#555; margin-bottom:4px;">
+                Current Owner PIN <span style="color:#b91c1c;">*</span>
+              </label>
+              <input type="password" id="sec-current-pin" required placeholder="Enter current owner PIN to verify" maxlength="12" style="${INPUT}" />
+              <div style="font-size:11px; color:#777; margin-top:3px;">Required to authorize changes to any portal PIN.</div>
+            </div>
+
+            <hr style="border:none; border-top:1px solid #eee; margin:16px 0;" />
+
+            <div style="margin-bottom:14px;">
+              <label style="display:block; font-size:12px; font-weight:600; text-transform:uppercase; color:#555; margin-bottom:4px;">
+                New Owner Portal PIN (Optional)
+              </label>
+              <input type="password" id="sec-new-owner-pin" placeholder="Leave blank to keep unchanged (4–12 digits)" maxlength="12" style="${INPUT}" />
+              <div style="font-size:11px; color:#777; margin-top:3px;">Used by you to access reports, menu, deals, and settings.</div>
+            </div>
+
+            <div style="margin-bottom:18px;">
+              <label style="display:block; font-size:12px; font-weight:600; text-transform:uppercase; color:#555; margin-bottom:4px;">
+                New Staff (Barista) Portal PIN (Optional)
+              </label>
+              <input type="password" id="sec-new-barista-pin" placeholder="Leave blank to keep unchanged (4–12 digits)" maxlength="12" style="${INPUT}" />
+              <div style="font-size:11px; color:#777; margin-top:3px;">Given to baristas & counter staff to manage incoming kitchen orders.</div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end;">
+              <button type="submit" id="sec-save-btn" class="btn-godaddy-dark" style="${SMALL_BTN} padding:10px 22px; font-size:14px;">
+                Save New PINs
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    view.innerHTML = '<p style="color:#b91c1c;">' + esc(e.message) + '</p>';
+  }
+}
+
+async function handleUpdatePins(ev) {
+  ev.preventDefault();
+  const currentPin = document.getElementById('sec-current-pin').value.trim();
+  const newOwnerPin = document.getElementById('sec-new-owner-pin').value.trim();
+  const newBaristaPin = document.getElementById('sec-new-barista-pin').value.trim();
+
+  if (!newOwnerPin && !newBaristaPin) {
+    showToast('Please enter a new Owner PIN or Staff PIN to change.', 'error');
+    return;
+  }
+  const btn = document.getElementById('sec-save-btn');
+  btn.disabled = true;
+  btn.innerText = 'Saving…';
+  try {
+    const res = await api('/api/owner/security', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPin, newOwnerPin, newBaristaPin })
+    });
+    showToast(res.message || 'PINs updated successfully!', 'success');
+    renderSecuritySettings(document.getElementById('staff-view'));
+  } catch (e) {
+    showToast(e.message, 'error');
+    btn.disabled = false;
+    btn.innerText = 'Save New PINs';
   }
 }
