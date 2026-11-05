@@ -1265,8 +1265,9 @@ async function submitFinalOrder() {
   const orderItems = order.items;
   const grandTotal = order.total;
 
-  // Play audio chime
+  // Play audio chime and trigger animated checkmark popup
   playChimeSound();
+  showOrderPlacedPopup(orderId, currentTable);
 
   // Clear cart
   cart = [];
@@ -1822,6 +1823,29 @@ function setAuthStatusMsg(msg, isError = false) {
   if (el) {
     el.style.color = isError ? '#b91c1c' : '#059669';
     el.innerText = msg;
+  }
+}
+
+
+function showOrderPlacedPopup(orderId, tableNum) {
+  const overlay = document.getElementById('order-placed-popup');
+  if (!overlay) return;
+  const idBadge = document.getElementById('popup-order-badge');
+  const tableBadge = document.getElementById('popup-table-badge');
+  if (idBadge) idBadge.innerText = orderId ? `#${orderId}` : '';
+  if (tableBadge) tableBadge.innerText = tableNum > 0 ? `📍 Table 0${tableNum}` : '🛍️ Takeaway / Counter';
+  overlay.style.display = 'flex';
+}
+
+function dismissOrderPlacedPopup() {
+  const overlay = document.getElementById('order-placed-popup');
+  if (overlay) {
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity 0.2s ease-out';
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      overlay.style.opacity = '';
+    }, 200);
   }
 }
 

@@ -2443,3 +2443,133 @@ input, textarea, select {
 .toast.toast-error {
   border-left: 4px solid #dc2626;
 }
+
+
+/* Animated Checkmark & Order Placed Popup */
+.checkmark-circle-wrap {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px auto;
+  position: relative;
+}
+
+.checkmark-svg {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 3.5;
+  stroke: #10b981;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #10b981;
+  animation: fillCircle 0.4s ease-in-out 0.4s forwards, scaleBounce 0.3s ease-in-out 0.8s both;
+}
+
+.checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 3.5;
+  stroke-miterlimit: 10;
+  stroke: #10b981;
+  fill: none;
+  animation: strokeCircle 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke: #ffffff;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: strokeCheck 0.35s cubic-bezier(0.65, 0, 0.45, 1) 0.5s forwards;
+}
+
+@keyframes strokeCircle {
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes strokeCheck {
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes fillCircle {
+  100% { box-shadow: inset 0px 0px 0px 40px #10b981; }
+}
+
+@keyframes scaleBounce {
+  0%, 100% { transform: none; }
+  50% { transform: scale3d(1.15, 1.15, 1); }
+}
+
+/* Standalone Celebration Popup Overlay */
+.order-placed-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeInPopup 0.25s ease-out;
+}
+
+.order-placed-popup-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  animation: popInCard 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.popup-title {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  color: #111;
+  margin: 0 0 6px 0;
+  font-weight: 700;
+}
+
+.popup-subtitle {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 16px 0;
+}
+
+.popup-order-badge {
+  display: inline-block;
+  background: #f3f4f6;
+  color: #111;
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 6px;
+}
+
+.popup-table-badge {
+  font-size: 13px;
+  color: #059669;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+@keyframes fadeInPopup {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popInCard {
+  from { opacity: 0; transform: scale(0.85) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}

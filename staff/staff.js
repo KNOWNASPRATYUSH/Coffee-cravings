@@ -23,37 +23,76 @@ function showToast(message, type = 'success') {
   }, 3200);
 }
 
+let staffAudioCtx = null;
+function getStaffAudioCtx() {
+  try {
+    if (!staffAudioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) staffAudioCtx = new AC();
+    }
+    if (staffAudioCtx && staffAudioCtx.state === 'suspended') {
+      staffAudioCtx.resume();
+    }
+  } catch (e) {}
+  return staffAudioCtx;
+}
+document.addEventListener('click', () => getStaffAudioCtx(), { passive: true });
+document.addEventListener('keydown', () => getStaffAudioCtx(), { passive: true });
+
 function playChimeSound() {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getStaffAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
     const now = ctx.currentTime;
 
+    // First Bell Ding (880 Hz - A5 with rich overtone)
     const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const osc1Harmonic = ctx.createOscillator();
+    const gain1 = ctx.createGain();
 
     osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(587.33, now); // D5
-    osc1.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+    osc1.frequency.setValueAtTime(880, now);
+    osc1Harmonic.type = 'triangle';
+    osc1Harmonic.frequency.setValueAtTime(1760, now);
 
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(880, now + 0.15);
-    osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.3); // D6
+    gain1.gain.setValueAtTime(0.7, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
 
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(ctx.destination);
+    osc1.connect(gain1);
+    osc1Harmonic.connect(gain1);
+    gain1.connect(ctx.destination);
 
     osc1.start(now);
-    osc2.start(now + 0.15);
-    osc1.stop(now + 0.6);
-    osc2.stop(now + 0.6);
-  } catch (e) {}
+    osc1Harmonic.start(now);
+    osc1.stop(now + 0.7);
+    osc1Harmonic.stop(now + 0.7);
+
+    // Second Bell Dong (1318.5 Hz - E6 ringing decay)
+    const t2 = now + 0.2;
+    const osc2 = ctx.createOscillator();
+    const osc2Harmonic = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(1318.5, t2);
+    osc2Harmonic.type = 'triangle';
+    osc2Harmonic.frequency.setValueAtTime(2637, t2);
+
+    gain2.gain.setValueAtTime(0.75, t2);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t2 + 1.1);
+
+    osc2.connect(gain2);
+    osc2Harmonic.connect(gain2);
+    gain2.connect(ctx.destination);
+
+    osc2.start(t2);
+    osc2Harmonic.start(t2);
+    osc2.stop(t2 + 1.1);
+    osc2Harmonic.stop(t2 + 1.1);
+  } catch (e) {
+    console.warn('Audio notification error:', e);
+  }
 }
 
 
@@ -113,6 +152,7 @@ function start(r) {
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
         <span class="brand-title-small">COFFEE &amp; CRAVINGS · STAFF</span>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button class="btn-godaddy-outline" style="font-size:12px; padding:6px 12px; display:inline-flex; align-items:center; gap:4px;" onclick="playChimeSound(); showToast('🔔 Kitchen bell test played!', 'info')"><span>🔔</span> Test Bell</button>
           <span class="kds-live-tag">${esc(role.toUpperCase())}</span>
           <button class="btn-godaddy-dark" style="font-size:12px; padding:8px 16px;" onclick="staffLogout()">Log out</button>
         </div>

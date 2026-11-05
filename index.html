@@ -385,7 +385,12 @@
 
       <!-- SUCCESS / TICKET VIEW (Replaces checkout body upon placement) -->
       <div class="modal-body success-state" id="order-success-state" style="display:none;">
-        <div class="success-checkmark">✓</div>
+        <div class="checkmark-circle-wrap">
+          <svg class="checkmark-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+            <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+            <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+          </svg>
+        </div>
         <h3 class="success-title">Order Received!</h3>
         <p class="success-subtitle">The barista has received your table ticket and is crafting your cravings.</p>
 
@@ -574,5 +579,25 @@
   <!-- APP JAVASCRIPT -->
   <script src="menu-data.js"></script>
   <script src="app.js"></script>
+
+  <!-- ANIMATED ORDER PLACED CELEBRATION POPUP -->
+  <div id="order-placed-popup" class="order-placed-popup-overlay" style="display:none;" onclick="dismissOrderPlacedPopup()">
+    <div class="order-placed-popup-card" onclick="event.stopPropagation()">
+      <div class="checkmark-circle-wrap">
+        <svg class="checkmark-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+          <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+      </div>
+      <h3 class="popup-title">Order Placed! 🎉</h3>
+      <p class="popup-subtitle">Your order has been received by the kitchen barista.</p>
+      <div class="popup-order-badge" id="popup-order-badge">#CC-0000</div>
+      <div class="popup-table-badge" id="popup-table-badge">📍 Table 01</div>
+      <button class="btn-godaddy-dark full-width mt-3" onclick="dismissOrderPlacedPopup()">
+        View Tracking &amp; Receipt
+      </button>
+    </div>
+  </div>
+
 </body>
 </html>
