@@ -161,7 +161,8 @@ function cleanCoupon(raw) {
   const expiresAt = String(raw.expiresAt || '');
   if (expiresAt && !/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) throw new HttpError(400, 'Expiry date is invalid.');
   return { code, type, value, minOrder: num(raw.minOrder, 100000, 'Minimum order'), maxDiscount: type === 'percent' ? num(raw.maxDiscount, 100000, 'Max discount') : 0,
-    maxUses: Math.floor(num(raw.maxUses, 1000000, 'Max uses')), expiresAt, active: raw.active !== false, newCustomerOnly: !!raw.newCustomerOnly };
+    maxUses: Math.floor(num(raw.maxUses, 1000000, 'Max uses')), expiresAt, active: raw.active !== false, newCustomerOnly: !!raw.newCustomerOnly,
+    perCustomerLimit: raw.perCustomerLimit !== undefined ? Math.floor(num(raw.perCustomerLimit, 1000, 'Per-customer limit')) : (raw.newCustomerOnly ? 1 : 0) };
 }
 const discountOf = (c, subtotalP) => {
   let d = c.type === 'percent' ? Math.floor(subtotalP * c.value / 100) : Math.round(c.value * 100);
@@ -195,6 +196,25 @@ async function checkCoupon(code, subtotalP, rawPhone, customerUid = '') {
       }
     }
   }
+
+  // General Anti-Abuse Ruleset: Per-Customer Usage Limit Check for any coupon
+  const limit = Number(c.perCustomerLimit || 0);
+  if (limit > 0 && !c.newCustomerOnly) {
+    const phone = cleanPhone(rawPhone);
+    if (phone && phone.length >= 6) {
+      const phoneUses = parseInt(await cmd('GET', 'coupon:useruses:' + code + ':' + phone), 10) || 0;
+      if (phoneUses >= limit) {
+        throw new HttpError(400, limit === 1 ? 'You have already used this coupon code.' : `You have reached the maximum limit (${limit} uses) for this coupon.`);
+      }
+    }
+    if (customerUid) {
+      const uidUses = parseInt(await cmd('GET', 'coupon:useruses:' + code + ':uid:' + customerUid), 10) || 0;
+      if (uidUses >= limit) {
+        throw new HttpError(400, limit === 1 ? 'You have already used this coupon code.' : `You have reached the maximum limit (${limit} uses) for this coupon.`);
+      }
+    }
+  }
+
   return { coupon: c, discountP: subtotalP === null ? 0 : discountOf(c, subtotalP) };
 }
 

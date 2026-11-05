@@ -97,7 +97,22 @@ module.exports = route(['POST'], async (req, res) => {
       payment = { gateway: 'razorpay', keyId: pay.keyId(), orderId: g.id, amount: totalP, currency: 'INR' };
       writes.push(['HSET', ok, 'gatewayOrderId', g.id, 'amount', totalP], ['SET', 'rzp:' + g.id, order.id, 'EX', ORDER_TTL_S]);
     }
-    if (couponCode) writes.push(['INCR', 'coupon:uses:' + couponCode]);
+    if (couponCode) {
+      writes.push(['INCR', 'coupon:uses:' + couponCode]);
+      const p = cleanPhone(phone);
+      if (p) {
+        writes.push(
+          ['INCR', 'coupon:useruses:' + couponCode + ':' + p],
+          ['EXPIRE', 'coupon:useruses:' + couponCode + ':' + p, 365 * 86400, 'NX']
+        );
+      }
+      if (loggedCust && loggedCust.uid) {
+        writes.push(
+          ['INCR', 'coupon:useruses:' + couponCode + ':uid:' + loggedCust.uid],
+          ['EXPIRE', 'coupon:useruses:' + couponCode + ':uid:' + loggedCust.uid, 365 * 86400, 'NX']
+        );
+      }
+    }
     if (isNewCustCoupon) {
       const p = cleanPhone(phone);
       if (p) writes.push(['SET', 'coupon:welcome:used:' + p, '1', 'EX', 365 * 86400]);

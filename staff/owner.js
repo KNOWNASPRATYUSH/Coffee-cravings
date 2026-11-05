@@ -254,6 +254,7 @@ function couponForm(i) {
     ${field('Maximum discount (₹, only for %, 0 = none)', `<input id="om-max" type="number" min="0" inputmode="decimal" style="${INPUT}" value="${esc(c.maxDiscount || 0)}" />`)}
     ${field('Expiry date (optional)', `<input id="om-exp" type="date" style="${INPUT}" value="${esc(c.expiresAt || '')}" />`)}
     ${field('Total uses allowed (0 = unlimited)', `<input id="om-uses" type="number" min="0" inputmode="numeric" style="${INPUT}" value="${esc(c.maxUses || 0)}" />`)}
+    ${field('Max uses per customer (default 1)', `<input id="om-userlimit" type="number" min="1" max="100" inputmode="numeric" style="${INPUT}" value="${esc(c.perCustomerLimit || 1)}" />`)}
     <label style="display:block; margin-top:10px; font-size:14px; background:#eff6ff; padding:8px 10px; border-radius:4px; border:1px solid #bfdbfe; color:#1e3a8a;">
       <input type="checkbox" id="om-newcust" ${c.newCustomerOnly ? 'checked' : ''} /> 🌟 <b>New customers only</b> (First-time order welcome coupon)
     </label>
@@ -269,7 +270,7 @@ async function saveCoupon() {
   const btn = document.getElementById('om-save'); btn.disabled = true;
   try {
     await sendCoupon({ code: val('om-code'), type: val('om-type'), value: val('om-value'), minOrder: val('om-min'), maxDiscount: val('om-max'),
-      expiresAt: val('om-exp'), maxUses: val('om-uses'), newCustomerOnly: checked('om-newcust'), active: checked('om-active') }, true);
+      expiresAt: val('om-exp'), maxUses: val('om-uses'), perCustomerLimit: val('om-userlimit') || 1, newCustomerOnly: checked('om-newcust'), active: checked('om-active') }, true);
     showToast('Coupon saved', 'success');
   } catch (e) { formError(e.message); btn.disabled = false; }
 }

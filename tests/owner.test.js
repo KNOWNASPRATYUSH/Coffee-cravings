@@ -72,6 +72,20 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
     assert.equal((await order([{ id: 'cappuccino', qty: 3 }], { coupon: 'FLAT50' })).code, 400);          // switched off
     assert.equal((await api('coupons', { method: 'DELETE', body: { code: 'OLD' } })).body.coupons.some(c => c.code === 'OLD'), false);
   });
+  await t('coupon ruleset: perCustomerLimit prevents repeat abuse while allowing configured repeat uses', async () => {
+    const mk = (c) => api('coupons', { method: 'PUT', body: { coupon: c } });
+    await mk({ code: 'TWICE', type: 'flat', value: 20, minOrder: 100, perCustomerLimit: 2 });
+
+    // 1st order by user T -> 201
+    assert.equal((await order([{ id: 'cappuccino', qty: 2 }], { coupon: 'TWICE' })).code, 201);
+    // 2nd order by user T -> 201 (limit is 2)
+    assert.equal((await order([{ id: 'cappuccino', qty: 2 }], { coupon: 'TWICE' })).code, 201);
+    // 3rd order by user T -> 400 BLOCKED (limit reached!)
+    const r3 = await order([{ id: 'cappuccino', qty: 2 }], { coupon: 'TWICE' });
+    assert.equal(r3.code, 400);
+    assert(/maximum limit/i.test(r3.body.error));
+  });
+
   await t('staff polling is cheap: unchanged until something changes', async () => {
     const first = (await call(staff, { cookie: B })).body; assert(first.orders.length > 0 && first.rev);
     assert.equal((await call(staff, { cookie: B, url: '/?rev=' + first.rev })).body.unchanged, true);
