@@ -11,6 +11,9 @@
 // =============================================================================
 // 2. STATE MANAGEMENT & LOCAL STORAGE
 // =============================================================================
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const escapeHtml = esc;
+
 let currentView = 'home';
 let currentTableSig = '';
 let orderSubmitting = false;
@@ -1611,7 +1614,7 @@ async function loadAndRenderMyOrders() {
   if (!currentCustomerUser && !customerPhone && !recentList.length) return;
 
   try {
-    const r = await fetch(url);
+    const r = await fetch(url, { credentials: 'same-origin' });
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
       container.innerHTML = `<div style="text-align:center; padding:30px; color:#b91c1c;">${d.error || 'Could not load orders.'}</div>`;
@@ -1630,7 +1633,7 @@ async function loadAndRenderMyOrders() {
       return;
     }
 
-    const hasActiveOrders = orders.some(o => !['completed'].includes(o.status) && !o.expired);
+    const hasActiveOrders = orders.some(o => !['completed', 'cancelled'].includes(o.status) && !o.expired);
 
     container.innerHTML = orders.map(o => {
       const icon = ORDER_STATUS_ICON[o.status] || '•';
@@ -1644,11 +1647,13 @@ async function loadAndRenderMyOrders() {
         </div>`
       ).join('');
       const tableLabel = o.table > 0 ? `Table 0${o.table}` : 'Takeaway';
-      const payBadge = o.paymentStatus === 'PAID'
-        ? `<span style="background:#d1fae5; color:#065f46; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">✓ PAID</span>`
-        : o.paymentStatus === 'PENDING'
-          ? `<span style="background:#fef3c7; color:#92400e; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">⏳ Pending</span>`
-          : `<span style="background:#fee2e2; color:#991b1b; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">💵 Pay at counter</span>`;
+      const payBadge = (o.status === 'cancelled' || o.paymentStatus === 'CANCELLED')
+        ? `<span style="background:#fee2e2; color:#991b1b; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">✕ Cancelled</span>`
+        : o.paymentStatus === 'PAID'
+          ? `<span style="background:#d1fae5; color:#065f46; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">✓ PAID</span>`
+          : o.paymentStatus === 'PENDING'
+            ? `<span style="background:#fef3c7; color:#92400e; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">⏳ Pending</span>`
+            : `<span style="background:#fee2e2; color:#991b1b; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600;">💵 Pay at counter</span>`;
 
       const pulseStyle = isActive ? 'animation:pulse-dot 1.4s infinite;' : '';
       const encodedItems = encodeURIComponent(JSON.stringify(items));
@@ -1705,6 +1710,7 @@ async function loadAndRenderMyOrders() {
       if (note) note.textContent = 'All orders up to date ✓';
     }
   } catch (e) {
+    console.error('[My Orders] Load error:', e);
     const container2 = document.getElementById('my-orders-cards');
     if (container2) container2.innerHTML = `<div style="text-align:center; padding:30px; color:#9ca3af;">Could not reach server. Retrying…</div>`;
   }
