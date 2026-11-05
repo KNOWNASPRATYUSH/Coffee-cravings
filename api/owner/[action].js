@@ -157,7 +157,7 @@ async function securityApi(req, res) {
 }
 
 module.exports = route(['GET', 'PUT', 'DELETE'], async (req, res) => {
-  requireStaff(req, ['owner']);
+  await requireStaff(req, ['owner']);
   const action = new URL(req.url, 'http://x').pathname.replace(/\/+$/, '').split('/').pop();
   if (action === 'menu') return menuApi(req, res);
   if (action === 'coupons') return couponsApi(req, res);

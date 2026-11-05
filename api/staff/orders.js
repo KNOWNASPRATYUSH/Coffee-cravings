@@ -5,7 +5,7 @@ const { recordSale, bump } = require('../_shop');
 const STATUSES = ['new', 'preparing', 'ready', 'completed'];
 
 module.exports = route(['GET', 'PATCH'], async (req, res) => {
-  requireStaff(req, ['barista', 'owner']);
+  await requireStaff(req, ['barista', 'owner']);
 
   if (req.method === 'GET') {
     // cheap check first: 1 Redis command per poll unless something actually changed

@@ -124,6 +124,12 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
     const newOwnerLogin = await call(session, { method: 'POST', body: { pin: '998877' }, ip: '2.0.0.9' });
     assert.equal(newOwnerLogin.code, 200);
     assert.equal(newOwnerLogin.body.role, 'owner');
+    const newOwnerCookie = newOwnerLogin.headers['Set-Cookie'].split(';')[0];
+    // Subsequent calls with the new PIN session succeed without session expiry
+    const testMenu = await call(owner, { url: '/api/owner/menu', cookie: newOwnerCookie });
+    assert.equal(testMenu.code, 200);
+    const testOrders = await call(staff, { cookie: newOwnerCookie });
+    assert.equal(testOrders.code, 200);
 
     // 8. Old Barista PIN "0508" is now rejected
     const oldBaristaLogin = await call(session, { method: 'POST', body: { pin: '0508' }, ip: '2.0.0.9' });
@@ -135,7 +141,6 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
     assert.equal(newBaristaLogin.body.role, 'barista');
 
     // 10. Revert PINs back so remaining tests/runs have default PINs
-    const newOwnerCookie = newOwnerLogin.headers['Set-Cookie'].split(';')[0];
     const revertRes = await call(owner, {
       url: '/api/owner/security',
       method: 'PUT',
