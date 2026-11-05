@@ -36,8 +36,11 @@ module.exports = route(['POST'], async (req, res) => {
   if (table > 0 && !tableSigOk(table, b.sig)) throw new HttpError(400, 'Please scan the QR code on your table to order for a table, or order as takeaway.');
 
   const loggedCust = customerOf(req);
+  if (!loggedCust || !loggedCust.uid) {
+    throw new HttpError(401, 'Please sign in with Google or Email OTP before placing an order.');
+  }
 
-  const phone = text(b.phone || (loggedCust ? loggedCust.phone : ''), 15);
+  const phone = text(b.phone !== undefined ? b.phone : loggedCust.phone, 15);
   if (phone && !/^[0-9+\- ]{6,15}$/.test(phone)) throw new HttpError(400, 'Please enter a valid phone number.');
 
   // idempotency: the same checkout can never create two orders (double tap / retry)
@@ -62,7 +65,7 @@ module.exports = route(['POST'], async (req, res) => {
     let discountP = 0, couponCode = '', isNewCustCoupon = false;
     const code = cleanCode(b.coupon);
     if (code) {
-      const checkRes = await checkCoupon(code, subtotalP, phone);
+      const checkRes = await checkCoupon(code, subtotalP, phone, loggedCust.uid);
       discountP = checkRes.discountP;
       couponCode = code;
       isNewCustCoupon = !!checkRes.coupon.newCustomerOnly;
@@ -73,7 +76,7 @@ module.exports = route(['POST'], async (req, res) => {
     const seq = await cmd('INCR', 'seq:order');
     const custName = text(b.customerName, 60) || (loggedCust ? loggedCust.name : '') || 'Guest';
     const order = {
-      id: 'CC-' + (1000 + seq), table, customerName: custName, phone,
+      id: 'CC-' + (1000 + seq), table, customerName: custName, phone, customerUid: loggedCust.uid,
       paymentMethod: b.paymentMethod === 'digital' ? 'digital' : 'counter', specialNotes: text(b.specialNotes, 300),
       items, subtotal: subtotalP / 100, discount: discountP / 100, couponCode, tax: taxP / 100, total: totalP / 100,
       dealsApplied: freebies.map(f => f.dealId), createdAt: new Date().toISOString()
@@ -95,9 +98,12 @@ module.exports = route(['POST'], async (req, res) => {
       writes.push(['HSET', ok, 'gatewayOrderId', g.id, 'amount', totalP], ['SET', 'rzp:' + g.id, order.id, 'EX', ORDER_TTL_S]);
     }
     if (couponCode) writes.push(['INCR', 'coupon:uses:' + couponCode]);
-    if (isNewCustCoupon && phone) {
+    if (isNewCustCoupon) {
       const p = cleanPhone(phone);
       if (p) writes.push(['SET', 'coupon:welcome:used:' + p, '1', 'EX', 365 * 86400]);
+      if (loggedCust && loggedCust.uid) {
+        writes.push(['SET', 'coupon:welcome:used:uid:' + loggedCust.uid, '1', 'EX', 365 * 86400]);
+      }
     }
     await pipe(writes);
 

@@ -6,8 +6,18 @@ const assert = require('assert');
 const orders = require('../api/orders'), config = require('../api/config'), session = require('../api/staff/session');
 const ownerAction = require('../api/owner/[action]'), customerApi = require('../api/customer');
 const myOrdersApi = require('../api/my-orders');
+const { issueCustomerToken } = require('../api/_lib');
 
 const call = async (h, { method = 'GET', body, cookie, url = '/', ip = '1.1.1.1', origin } = {}) => {
+  if (cookie === undefined) {
+    if (h === orders) {
+      const p = (body && typeof body.phone === 'string') ? body.phone : '9876543210';
+      cookie = 'cc_customer=' + issueCustomerToken({ uid: 'cust_' + p, phone: p, name: (body && body.customerName) || 'Test User' });
+    } else if (h === myOrdersApi || h === customerApi) {
+      const p = (new URL(url, 'http://x')).searchParams.get('phone') || '';
+      cookie = 'cc_customer=' + issueCustomerToken({ uid: 'cust_' + p, phone: p, name: 'Test User' });
+    }
+  }
   const res = { code: 200, headers: {}, body: null, setHeader(k, v) { this.headers[k] = v; }, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; } };
   await h({ method, url, body, headers: { 'x-real-ip': ip, cookie: cookie || '', 'content-type': 'application/json', host: 'cafe.test', ...(origin ? { origin } : {}) } }, res);
   return res;
@@ -195,10 +205,9 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     assert.equal(r.body.orders.length, 0);
   });
 
-  await t('GET /api/my-orders rejects missing phone number', async () => {
-    const r = await call(myOrdersApi, { url: '/api/my-orders', ip: '5.5.5.13' });
-    assert.equal(r.code, 400);
-    assert(/phone/i.test(r.body.error));
+  await t('GET /api/my-orders without session is rejected with 401', async () => {
+    const r = await call(myOrdersApi, { url: '/api/my-orders', ip: '5.5.5.13', cookie: '' });
+    assert.equal(r.code, 401);
   });
 
   console.log(`\n${n} CRM & Deals checks passed!`);

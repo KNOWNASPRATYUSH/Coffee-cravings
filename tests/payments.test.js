@@ -5,13 +5,15 @@ const assert = require('assert'), crypto = require('crypto');
 let gwN = 0, gwDown = false;
 global.fetch = async (url) => { assert(/api\.razorpay\.com\/v1\/orders/.test(url)); if (gwDown) return { ok: false, status: 500, text: async () => 'x' }; return { ok: true, json: async () => ({ id: 'order_TEST' + (++gwN) + 'abcdef' }) }; };
 const orders = require('../api/orders'), session = require('../api/staff/session'), staff = require('../api/staff/orders'), verify = require('../api/payments/verify'), hook = require('../api/payments/webhook'), config = require('../api/config');
+const { issueCustomerToken } = require('../api/_lib');
+const custCookie = 'cc_customer=' + issueCustomerToken({ uid: 'cust_pay_test', phone: '9876543210', name: 'A' });
 
 const call = async (h, { method = 'POST', body, cookie = '', ip = '1.1.1.1', headers = {}, raw } = {}) => {
   const res = { code: 200, headers: {}, body: null, setHeader(k, v) { this.headers[k] = v; }, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; } };
   await h({ method, url: '/', body, rawBody: raw, headers: { 'x-real-ip': ip, cookie, 'content-type': 'application/json', host: 'cafe.test', ...headers } }, res); return res;
 };
 const hex = (k, d) => crypto.createHmac('sha256', k).update(d).digest('hex');
-const mk = (key, extra = {}) => call(orders, { ip: '4.4.' + Math.floor(Math.random() * 250) + '.1', body: { key, table: 0, items: [{ id: 'cappuccino', qty: 1 }], customerName: 'A', phone: '9876543210', paymentMethod: 'digital', ...extra } });
+const mk = (key, extra = {}) => call(orders, { cookie: custCookie, ip: '4.4.' + Math.floor(Math.random() * 250) + '.1', body: { key, table: 0, items: [{ id: 'cappuccino', qty: 1 }], customerName: 'A', phone: '9876543210', paymentMethod: 'digital', ...extra } });
 const hookCall = (evt, sig) => { const raw = Buffer.from(JSON.stringify(evt)); return call(hook, { raw, body: undefined, headers: { 'x-razorpay-signature': sig === undefined ? hex('hooksecret123', raw) : sig } }); };
 const captured = (gid, pid, amount) => ({ event: 'payment.captured', payload: { payment: { entity: { id: pid, order_id: gid, amount, status: 'captured' } } } });
 let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); };

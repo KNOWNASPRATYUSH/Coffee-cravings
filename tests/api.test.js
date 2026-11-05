@@ -4,8 +4,12 @@ process.env.OWNER_PIN = '123456';
 process.env.BARISTA_PIN = '654321';
 const assert = require('assert');
 const orders = require('../api/orders'), session = require('../api/staff/session'), staffOrders = require('../api/staff/orders'), qr = require('../api/staff/qr');
+const { issueCustomerToken } = require('../api/_lib');
 
 const call = async (h, { method = 'GET', body, cookie, url = '/', ip = '1.1.1.1', ct = 'application/json', origin } = {}) => {
+  if (h === orders && cookie === undefined) {
+    cookie = 'cc_customer=' + issueCustomerToken({ uid: 'cust_api_test', phone: '9876543210', name: 'A' });
+  }
   const res = { code: 200, headers: {}, body: null, setHeader(k, v) { this.headers[k] = v; }, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; } };
   await h({ method, url, body, headers: { 'x-real-ip': ip, cookie: cookie || '', 'content-type': ct, host: 'cafe.test', ...(origin ? { origin } : {}) } }, res);
   return res;
@@ -35,6 +39,10 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
   await t('barista cannot use owner QR endpoint, owner can', async () => {
     assert.equal((await call(qr, { cookie: barista.cookie, url: '/?table=3' })).code, 403);
     const r = await call(qr, { cookie: owner.cookie, url: '/?table=3' }); assert.equal(r.code, 200); assert(/table=3&sig=/.test(r.body.path));
+  });
+  await t('customer order without session is rejected with 401', async () => {
+    const r = await call(orders, { method: 'POST', body: base, cookie: '' });
+    assert.equal(r.code, 401);
   });
   await t('customer order: server prices, UNPAID even if digital', async () => {
     const r = await call(orders, { method: 'POST', body: { ...base, items: [{ id: 'cappuccino', qty: 2, price: 1 }], total: 1, paymentStatus: 'PAID' } });

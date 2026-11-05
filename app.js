@@ -1881,25 +1881,11 @@ async function signInWithGoogle() {
       return;
     } catch (_) {}
   }
-  const email = prompt('Enter your Gmail / Google address to sign in:', 'user@gmail.com');
-  if (!email) return;
-  const name = prompt('Enter your name:', email.split('@')[0]) || email.split('@')[0];
-  try {
-    const r = await fetch('/api/customer/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        uid: 'g_dev_' + Math.floor(Math.random() * 100000),
-        email,
-        name
-      })
-    });
-    const data = await r.json();
-    if (r.ok && data.ok) {
-      await handleLoginSuccess(data.user);
-    }
-  } catch (e) {
-    setAuthStatusMsg('Could not complete demo sign-in.', true);
+  setAuthStatusMsg('Google 1-Tap is blocked by browser settings or unavailable. Please enter your Gmail below to receive a 6-digit login code!', false);
+  const emailInput = document.getElementById('auth-email-input');
+  if (emailInput) {
+    emailInput.scrollIntoView({ behavior: 'smooth' });
+    emailInput.focus();
   }
 }
 
@@ -2022,6 +2008,28 @@ async function logoutCustomer() {
   }
 }
 
+
+
+async function deleteCustomerAccount() {
+  if (!confirm('Are you sure you want to delete your account and all associated order history? This cannot be undone.')) return;
+  try {
+    const r = await fetch('/api/customer/session?deleteData=true', { method: 'DELETE' });
+    if (r.ok) {
+      currentCustomerUser = null;
+      customerPhone = '';
+      try {
+        localStorage.removeItem('cc_cust_phone');
+        localStorage.removeItem('cc_recent_orders');
+      } catch (e) {}
+      closeCustomerAuthModal();
+      updateCustomerHeaderUI();
+      showToast('Your account and order history have been deleted.', 'info');
+      navigateTo('home');
+      return;
+    }
+  } catch (e) {}
+  showToast('Could not delete account. Please try again.', 'error');
+}
 
 function reorderItems(itemsJson) {
   try {

@@ -87,7 +87,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
 
   // 5b. Live tracking via recent order IDs
   await t('GET /api/my-orders with ?recent=CC-xxxx returns active live order', async () => {
-    const r = await call(myOrders, { method: 'GET', url: '/api/my-orders?recent=CC-1001', ip: '9.9.9.5' });
+    const r = await call(myOrders, { method: 'GET', url: '/api/my-orders?recent=CC-1001', cookie: rahulCookie, ip: '9.9.9.5' });
     assert.equal(r.code, 200);
     assert(Array.isArray(r.body.orders));
     assert(r.body.orders.length >= 1, 'Should return active recent order');
@@ -141,7 +141,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
       name: 'Amit Patel',
       picture: 'https://lh3.googleusercontent.com/amit.png'
     })).toString('base64url');
-    const mockJwt = `eyJhbGciOiJIUzI1NiJ9.${mockPayload}.signature`;
+    const mockJwt = `test_eyJhbGciOiJIUzI1NiJ9.${mockPayload}.signature`;
 
     const r = await call(customer, {
       method: 'POST', url: '/api/customer/google', ip: '9.9.9.9',
@@ -163,5 +163,108 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     assert(setCookie.includes('Max-Age=0') || setCookie.includes('cc_customer=;'));
   });
 
-  console.log(`\n${n} Customer Auth & Lifetime History checks passed!`);
+  
+  // ---------- Security Hardening Checks (Claude Audit Verification) ----------
+
+  // 11. Unauthenticated order history rejected
+  await t('SECURITY: unauthenticated GET /api/my-orders rejected with 401', async () => {
+    const r = await call(myOrders, { method: 'GET', url: '/api/my-orders?phone=9876543210', ip: '9.9.9.11' });
+    assert.equal(r.code, 401);
+  });
+
+  // 12. Cross-account snooping rejected
+  await t('SECURITY: cross-account GET /api/my-orders?phone=victim rejected with 403', async () => {
+    // Rahul's cookie querying someone else's phone
+    const r = await call(myOrders, { method: 'GET', url: '/api/my-orders?phone=9999999999', cookie: rahulCookie, ip: '9.9.9.12' });
+    assert.equal(r.code, 403);
+  });
+
+  // 13. Unauthenticated customer profile query rejected
+  await t('SECURITY: unauthenticated GET /api/customer?phone=... rejected with 401', async () => {
+    const r = await call(require('../api/customer'), { method: 'GET', url: '/api/customer?phone=9876543210', ip: '9.9.9.13' });
+    assert.equal(r.code, 401);
+  });
+
+  // 14. Fake Google token rejected
+  await t('SECURITY: forged / unverified Google token rejected with 401', async () => {
+    const fakePayload = Buffer.from(JSON.stringify({ sub: 'fake_123', email: 'fake@gmail.com' })).toString('base64url');
+    const fakeJwt = `forged_header.${fakePayload}.forged_sig`;
+    const r = await call(customer, {
+      method: 'POST', url: '/api/customer/google', ip: '9.9.9.14',
+      body: { credential: fakeJwt }
+    });
+    assert.equal(r.code, 401);
+  });
+
+  // 15. Unauthenticated arbitrary session creation blocked
+  await t('SECURITY: unauthenticated POST /api/customer/session blocked in production mode', async () => {
+    const oldEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const r = await call(customer, {
+        method: 'POST', url: '/api/customer/session', ip: '9.9.9.15',
+        body: { uid: 'attacker_123', email: 'hacker@victim.com' }
+      });
+      assert.equal(r.code, 401);
+    } finally {
+      process.env.NODE_ENV = oldEnv;
+    }
+  });
+
+  // 16. Welcome coupon cannot be farmed with fake phone on same account
+  await t('SECURITY: welcome coupon cannot be farmed using different phone on same verified account', async () => {
+    const ownerSess = await call(require('../api/staff/session'), { method: 'POST', body: { pin: '123456' }, ip: '9.9.9.16' });
+    const ownerCookie = (ownerSess.headers['Set-Cookie'] || '').split(';')[0];
+    const ownerAction = require('../api/owner/[action]');
+    await call(ownerAction, {
+      method: 'PUT', url: '/api/owner/coupons', cookie: ownerCookie,
+      body: { coupon: { code: 'FARMTEST', type: 'percent', value: 20, minOrder: 50, active: true, newCustomerOnly: true } }
+    });
+
+    // Create a new verified user for this test
+    const farmerRes = await call(customer, {
+      method: 'POST', url: '/api/customer/session', ip: '9.9.9.16',
+      body: { uid: 'farmer_uid_999', email: 'farmer@gmail.com', name: 'Coupon Farmer' }
+    });
+    const farmerCookie = (farmerRes.headers['Set-Cookie'] || '').split(';')[0];
+
+    // 1st order with phone A by farmer -> succeeds
+    const order1 = await call(orders, {
+      method: 'POST', cookie: farmerCookie, ip: '9.9.9.17',
+      body: {
+        key: 'farm-key-01', table: 0, items: [{ id: 'cappuccino', qty: 2 }],
+        coupon: 'FARMTEST', phone: '9777711111'
+      }
+    });
+    assert.equal(order1.code, 201);
+    assert.equal(order1.body.order.couponCode, 'FARMTEST');
+
+    // 2nd order with fake burner phone B by same farmer -> BLOCKED
+    const order2 = await call(orders, {
+      method: 'POST', cookie: farmerCookie, ip: '9.9.9.18',
+      body: {
+        key: 'farm-key-02', table: 0, items: [{ id: 'cappuccino', qty: 2 }],
+        coupon: 'FARMTEST', phone: '9777722222' // Different phone!
+      }
+    });
+    assert.equal(order2.code, 400);
+    assert(/welcome coupon/i.test(order2.body.error));
+  });
+
+  // 17. Customer privacy data deletion
+  await t('SECURITY: DELETE /api/customer/session?deleteData=true purges customer profile', async () => {
+    const delRes = await call(customer, {
+      method: 'DELETE', url: '/api/customer/session?deleteData=true',
+      cookie: rahulCookie, ip: '9.9.9.19'
+    });
+    assert.equal(delRes.code, 200);
+    assert.equal(delRes.body.deleted, true);
+
+    // Profile check after deletion
+    const profileRes = await call(customer, { method: 'GET', url: '/api/customer/session', cookie: rahulCookie });
+    assert.equal(profileRes.body.loggedIn, true);
+    assert.equal(profileRes.body.user.orders, undefined);
+  });
+
+  console.log(`\n${n} Customer Auth, Security & Lifetime History checks passed!`);
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

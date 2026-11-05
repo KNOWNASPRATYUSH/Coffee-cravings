@@ -169,7 +169,7 @@ const discountOf = (c, subtotalP) => {
   return Math.min(d, subtotalP);
 };
 // subtotalP = null -> only check that the code itself is usable (used by the "Apply" button)
-async function checkCoupon(code, subtotalP, rawPhone) {
+async function checkCoupon(code, subtotalP, rawPhone, customerUid = '') {
   const c = parse(await cmd('HGET', 'coupons', code));
   if (!c || !c.active) throw new HttpError(400, 'This coupon code is not valid.');
   if (c.expiresAt && Date.now() > new Date(c.expiresAt + 'T23:59:59+05:30').getTime()) throw new HttpError(400, 'This coupon has expired.');
@@ -184,6 +184,16 @@ async function checkCoupon(code, subtotalP, rawPhone) {
     }
     const alreadyUsed = await cmd('GET', 'coupon:welcome:used:' + phone);
     if (alreadyUsed) throw new HttpError(400, 'This welcome coupon has already been used for this number.');
+
+    // Protect against account coupon-farming with alternate/fake phone numbers
+    if (customerUid) {
+      const uidUsed = await cmd('GET', 'coupon:welcome:used:uid:' + customerUid);
+      if (uidUsed) throw new HttpError(400, 'This welcome coupon has already been used by your account.');
+      const userProfile = await getCustomerUser(customerUid);
+      if (userProfile && ((parseInt(userProfile.orders, 10) || 0) > 0 || (parseInt(userProfile.paidOrders, 10) || 0) > 0)) {
+        throw new HttpError(400, 'This welcome coupon is only valid for new customers on their first order.');
+      }
+    }
   }
   return { coupon: c, discountP: subtotalP === null ? 0 : discountOf(c, subtotalP) };
 }
@@ -423,6 +433,29 @@ async function getCustomerCoupons(phone) {
   return raw.map(parse).filter(Boolean).reverse(); // most-recent first
 }
 
+
+async function deleteCustomerData(uid, rawPhone) {
+  const p = cleanPhone(rawPhone);
+  const ops = [];
+  if (uid) {
+    ops.push(
+      ['DEL', 'cust:user:' + uid],
+      ['DEL', 'cust:orders:uid:' + uid],
+      ['DEL', 'cust:uid2phone:' + uid]
+    );
+  }
+  if (p) {
+    ops.push(
+      ['DEL', 'customer:' + p],
+      ['DEL', 'cust:orders:' + p],
+      ['DEL', 'cust:phone2uid:' + p],
+      ['ZREM', 'customers', p]
+    );
+  }
+  if (ops.length) await pipe(ops);
+  return { ok: true };
+}
+
 // ---------- stats ----------
 const bump = () => cmd('INCR', 'orders:rev'); // staff screens only re-download orders when this changes
 
@@ -447,6 +480,6 @@ module.exports = {
   cleanCoupon, cleanCode, checkCoupon,
   cleanPhone, isPhone, lookupCustomer, recordCustomerOrder, recordCustomerPayment, listCustomers, getCustomerOrders,
   recordCouponUsed, getCustomerCoupons,
-  upsertCustomerUser, getCustomerUser,
+  upsertCustomerUser, getCustomerUser, deleteCustomerData,
   bump, recordSale
 };

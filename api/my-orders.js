@@ -2,7 +2,7 @@
 // Customer Orders endpoint: GET /api/my-orders
 // Returns lifetime orders with live status from Redis when active,
 // or the permanent stored receipt when older.
-const { HttpError, pipe, toObj, route, clientIp, customerOf } = require('./_lib');
+const { HttpError, cmd, pipe, toObj, route, clientIp, customerOf } = require('./_lib');
 const { cleanPhone, isPhone, getCustomerOrders } = require('./_shop');
 
 const parse = (raw) => { try { return raw ? JSON.parse(raw) : null; } catch (e) { return null; } };
@@ -18,16 +18,29 @@ const STATUS_LABEL = {
 module.exports = route(['GET'], async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const loggedCust = customerOf(req);
+  if (!loggedCust || !loggedCust.uid) {
+    throw new HttpError(401, 'Please sign in to view your order history.');
+  }
+
   const rawParamPhone = url.searchParams.get('phone') || '';
   const paramPhone = isPhone(rawParamPhone) ? cleanPhone(rawParamPhone) : '';
+  const userPhone = cleanPhone(loggedCust.phone);
   const recentParam = String(url.searchParams.get('recent') || '').trim();
 
-  // Primary identifier: authenticated UID or phone
-  const identifier = (loggedCust && (loggedCust.uid || loggedCust.phone)) || paramPhone;
-
-  if (!identifier && !paramPhone && !recentParam) {
-    throw new HttpError(400, 'Valid phone number or login is required.');
+  if (paramPhone) {
+    if (userPhone && paramPhone !== userPhone) {
+      throw new HttpError(403, 'You can only view orders associated with your own account.');
+    }
+    if (!userPhone) {
+      const phoneUid = await cmd('GET', 'cust:phone2uid:' + paramPhone);
+      if (phoneUid !== loggedCust.uid) {
+        throw new HttpError(403, 'You can only view orders associated with your own account.');
+      }
+    }
   }
+
+  const identifier = loggedCust.uid;
+  const targetPhone = paramPhone || userPhone;
 
   // Rate limit: 60 requests per 10 minutes per IP
   const rlKey = 'rl:myorders:' + clientIp(req);
@@ -35,7 +48,7 @@ module.exports = route(['GET'], async (req, res) => {
   if (n > 60) throw new HttpError(429, 'Too many requests. Please wait a few minutes.');
 
   // Get the customer's permanent order records (checking both UID and phone)
-  const storedOrders = await getCustomerOrders(identifier, paramPhone);
+  const storedOrders = await getCustomerOrders(identifier, targetPhone);
   const orderMap = new Map();
   for (const o of storedOrders) {
     if (o && o.id) orderMap.set(o.id, o);

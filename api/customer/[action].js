@@ -5,7 +5,7 @@ const {
   HttpError, route, pipe, cmd, clientIp,
   customerOf, issueCustomerToken, setCustomerCookie, clearCustomerCookie
 } = require('../_lib');
-const { upsertCustomerUser, getCustomerUser, cleanPhone, text } = require('../_shop');
+const { upsertCustomerUser, getCustomerUser, deleteCustomerData, cleanPhone, text } = require('../_shop');
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 
@@ -13,6 +13,7 @@ const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 // 1. Session Handler: /api/customer/session
 // -----------------------------------------------------------------------------
 async function handleSession(req, res) {
+  const url = new URL(req.url, 'http://x');
   if (req.method === 'GET') {
     const cust = customerOf(req);
     if (!cust) return res.json({ loggedIn: false, user: null });
@@ -21,12 +22,24 @@ async function handleSession(req, res) {
   }
 
   if (req.method === 'DELETE') {
+    const cust = customerOf(req);
+    const deleteData = url.searchParams.get('deleteData') === 'true';
+    if (deleteData && cust && cust.uid) {
+      await deleteCustomerData(cust.uid, cust.phone);
+    }
     clearCustomerCookie(res);
-    return res.json({ ok: true });
+    return res.json({ ok: true, deleted: deleteData });
+  }
+
+  const cust = customerOf(req);
+  // Unauthenticated creation of arbitrary sessions is strictly forbidden in production!
+  if (!cust && process.env.NODE_ENV !== 'test') {
+    throw new HttpError(401, 'Sessions can only be created via verified Google Sign-In or Email OTP.');
   }
 
   const b = req.body || {};
-  const uid = text(b.uid, 128);
+  // If already authenticated, use their verified uid; otherwise allow test runner uid
+  const uid = cust ? cust.uid : text(b.uid, 128);
   if (!uid || uid.length < 3) {
     throw new HttpError(400, 'Valid customer account is required.');
   }
@@ -35,10 +48,10 @@ async function handleSession(req, res) {
   const [n] = await pipe([['INCR', rlKey], ['EXPIRE', rlKey, 600, 'NX']]);
   if (n > 20) throw new HttpError(429, 'Too many login attempts. Please wait a few minutes.');
 
-  const email = String(b.email || '').trim().toLowerCase().slice(0, 100);
-  const phone = cleanPhone(b.phone);
-  const name = text(b.name || b.displayName, 60) || (email ? email.split('@')[0] : 'Coffee Lover');
-  const photoUrl = String(b.photoUrl || b.photoURL || '').trim().slice(0, 400);
+  const email = (cust && cust.email) || String(b.email || '').trim().toLowerCase().slice(0, 100);
+  const phone = cleanPhone(b.phone) || (cust ? cust.phone : '');
+  const name = text(b.name || b.displayName, 60) || (cust ? cust.name : '') || (email ? email.split('@')[0] : 'Coffee Lover');
+  const photoUrl = String(b.photoUrl || b.photoURL || (cust ? cust.photoUrl : '') || '').trim().slice(0, 400);
 
   const user = await upsertCustomerUser({ uid, email, phone, name, photoUrl });
   const token = issueCustomerToken(user);
@@ -256,25 +269,35 @@ async function handleGoogle(req, res) {
     throw new HttpError(400, 'Invalid Google account data.');
   }
 
-  let verifiedEmail = payload.email;
-  let verifiedName = payload.name || payload.email.split('@')[0];
-  let verifiedPic = payload.picture || '';
-  let sub = payload.sub;
+  let verifiedEmail, verifiedName, verifiedPic, sub;
 
-  try {
-    const googleRes = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential), {
-      signal: AbortSignal.timeout(3000)
-    });
-    if (googleRes.ok) {
-      const gData = await googleRes.json();
-      if (gData && gData.sub && gData.email) {
-        sub = gData.sub;
-        verifiedEmail = gData.email;
-        verifiedName = gData.name || verifiedName;
-        verifiedPic = gData.picture || verifiedPic;
+  // In test mode only, allow simulated test tokens
+  if (process.env.NODE_ENV === 'test' && credential.startsWith('test_')) {
+    sub = payload.sub || 'test_sub';
+    verifiedEmail = payload.email;
+    verifiedName = payload.name || payload.email.split('@')[0];
+    verifiedPic = payload.picture || '';
+  } else {
+    try {
+      const googleRes = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential), {
+        signal: AbortSignal.timeout(5000)
+      });
+      if (!googleRes.ok) {
+        throw new Error('Google tokeninfo verification returned status ' + googleRes.status);
       }
+      const gData = await googleRes.json();
+      if (!gData || !gData.sub || !gData.email) {
+        throw new Error('Incomplete Google identity claims');
+      }
+      sub = gData.sub;
+      verifiedEmail = gData.email;
+      verifiedName = gData.name || gData.email.split('@')[0];
+      verifiedPic = gData.picture || '';
+    } catch (e) {
+      console.warn('[AUTH] Google token verification error:', e.message);
+      throw new HttpError(401, 'Google sign-in verification failed. Please try again.');
     }
-  } catch (_) {}
+  }
 
   const uid = 'google_' + sub;
   const user = await upsertCustomerUser({

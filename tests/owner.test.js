@@ -2,6 +2,8 @@
 process.env.SESSION_SECRET = 'x'.repeat(40); process.env.OWNER_PIN = '8044'; process.env.BARISTA_PIN = '0508';
 const assert = require('assert');
 const orders = require('../api/orders'), session = require('../api/staff/session'), staff = require('../api/staff/orders'), owner = require('../api/owner/[action]'), config = require('../api/config');
+const { issueCustomerToken } = require('../api/_lib');
+const custCookie = 'cc_customer=' + issueCustomerToken({ uid: 'cust_owner_test', phone: '9876543210', name: 'T' });
 
 const call = async (h, { method = 'GET', body, cookie = '', url = '/', ip = '1.1.1.1' } = {}) => {
   const res = { code: 200, headers: {}, body: null, setHeader(k, v) { this.headers[k] = v; }, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; } };
@@ -9,7 +11,7 @@ const call = async (h, { method = 'GET', body, cookie = '', url = '/', ip = '1.1
 };
 const login = async (pin, ip) => (await call(session, { method: 'POST', body: { pin }, ip })).headers['Set-Cookie'].split(';')[0];
 let seq = 0;
-const order = (items, extra = {}) => call(orders, { method: 'POST', ip: '10.0.' + (++seq) + '.1', body: { key: 'owner-test-' + String(++seq).padStart(4, '0'), table: 0, items, customerName: 'T', phone: '9876543210', paymentMethod: 'counter', ...extra } });
+const order = (items, extra = {}) => call(orders, { method: 'POST', cookie: custCookie, ip: '10.0.' + (++seq) + '.1', body: { key: 'owner-test-' + String(++seq).padStart(4, '0'), table: 0, items, customerName: 'T', phone: '9876543210', paymentMethod: 'counter', ...extra } });
 let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); };
 
 (async () => {

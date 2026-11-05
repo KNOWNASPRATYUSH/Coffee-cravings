@@ -1,16 +1,37 @@
 'use strict';
-const { HttpError, pipe, toObj, route, clientIp, cmd } = require('./_lib');
+const { HttpError, pipe, toObj, route, clientIp, cmd, customerOf } = require('./_lib');
 const { lookupCustomer, cleanPhone, getCustomerCoupons } = require('./_shop');
 
 const parse = (raw) => { try { return raw ? JSON.parse(raw) : null; } catch (e) { return null; } };
 
 module.exports = route(['GET'], async (req, res) => {
   const url = new URL(req.url, 'http://x');
-  const rawPhone = url.searchParams.get('phone');
+  const loggedCust = customerOf(req);
+
+  // Require customer session for private profile lookup
+  if (!loggedCust) {
+    throw new HttpError(401, 'Please sign in to view customer profile.');
+  }
+
+  const rawPhone = url.searchParams.get('phone') || (loggedCust ? loggedCust.phone : '');
   const phone = cleanPhone(rawPhone);
 
   if (!phone || phone.length < 6) {
     throw new HttpError(400, 'Valid phone number is required.');
+  }
+
+  // Cross-customer snooping prevention
+  if (loggedCust) {
+    const userPhone = cleanPhone(loggedCust.phone);
+    if (userPhone && userPhone !== phone) {
+      throw new HttpError(403, 'You can only view your own customer profile.');
+    }
+    if (!userPhone) {
+      const phoneUid = await cmd('GET', 'cust:phone2uid:' + phone);
+      if (phoneUid && phoneUid !== loggedCust.uid) {
+        throw new HttpError(403, 'You can only view your own customer profile.');
+      }
+    }
   }
 
   const rlKey = 'rl:cust:' + clientIp(req);
@@ -22,9 +43,10 @@ module.exports = route(['GET'], async (req, res) => {
   let couponsUsed = [];
 
   if (!cust || cust.isNew) {
-    // Check if phone has already used a welcome coupon
-    const used = await cmd('GET', 'coupon:welcome:used:' + phone);
-    if (!used) {
+    // Check if phone or account has already used a welcome coupon
+    const usedPhone = await cmd('GET', 'coupon:welcome:used:' + phone);
+    const usedUid = (loggedCust && loggedCust.uid) ? await cmd('GET', 'coupon:welcome:used:uid:' + loggedCust.uid) : null;
+    if (!usedPhone && !usedUid) {
       // Find an active welcome coupon
       const allCoupons = Object.values(toObj(await cmd('HGETALL', 'coupons'))).map(parse).filter(Boolean);
       const activeWelcome = allCoupons.find(c => c.active && c.newCustomerOnly);
@@ -44,16 +66,15 @@ module.exports = route(['GET'], async (req, res) => {
     couponsUsed = await getCustomerCoupons(phone);
   }
 
+  // Never leak totalSpend to the public customer endpoint
   res.json({
     phone,
     exists: !!(cust && cust.exists),
     isNew: !cust || cust.isNew,
-    name: (cust && cust.name) || '',
+    name: (cust && cust.name) || (loggedCust && loggedCust.name) || '',
     orders: (cust && cust.orders) || 0,
     paidOrders: (cust && cust.paidOrders) || 0,
-    totalSpend: (cust && cust.totalSpend) || 0,
     welcomeCoupon,
     couponsUsed
   });
 });
-
