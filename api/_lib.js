@@ -113,7 +113,9 @@ const pinVersion = (role, customPin) => {
 };
 
 function issueToken(role, customPin) {
-  const body = Buffer.from(JSON.stringify({ role, exp: Date.now() + SESSION_MS, pv: pinVersion(role, customPin) })).toString('base64url');
+  const p = customPin || (_cachedPins ? _cachedPins[role] : pins()[role]);
+  const now = Date.now();
+  const body = Buffer.from(JSON.stringify({ role, exp: now + SESSION_MS, iat: now, pv: pinVersion(role, p) })).toString('base64url');
   return body + '.' + mac(body);
 }
 function readToken(token) {
@@ -122,7 +124,7 @@ function readToken(token) {
   if (!body || !sig || !safeEq(sig, mac(body))) return null;
   try {
     const p = JSON.parse(Buffer.from(body, 'base64url').toString());
-    if (!['owner', 'barista'].includes(p.role) || !(p.exp > Date.now()) || p.pv !== pinVersion(p.role)) return null;
+    if (!['owner', 'barista'].includes(p.role) || !(p.exp > Date.now())) return null;
     return p;
   } catch (e) { return null; }
 }
@@ -133,10 +135,22 @@ function cookieOf(req, name) {
 function setSessionCookie(res, token, maxAgeS) {
   res.setHeader('Set-Cookie', `cc_staff=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeS}${IS_PROD ? '; Secure' : ''}`);
 }
-function requireStaff(req, roles) {
+async function requireStaff(req, roles) {
   const p = readToken(cookieOf(req, 'cc_staff'));
   if (!p) throw new HttpError(401, 'Please sign in.');
   if (roles && !roles.includes(p.role)) throw new HttpError(403, 'Not allowed for your role.');
+
+  // If a PIN change occurred, only revoke tokens issued BEFORE the change
+  if (p.iat) {
+    try {
+      const revokedAt = await cmd('GET', 'cfg:pin:revoked_before:' + p.role);
+      if (revokedAt && p.iat < Number(revokedAt)) {
+        throw new HttpError(401, 'PIN was changed. Please sign in again.');
+      }
+    } catch (e) {
+      if (e instanceof HttpError) throw e;
+    }
+  }
   return p;
 }
 

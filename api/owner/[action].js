@@ -135,10 +135,12 @@ async function securityApi(req, res) {
     const updates = {};
     if (newOwnerPin) {
       await cmd('SET', 'cfg:pin:owner', newOwnerPin);
+      await cmd('SET', 'cfg:pin:revoked_before:owner', String(Date.now()));
       updates.owner = newOwnerPin;
     }
     if (newBaristaPin) {
       await cmd('SET', 'cfg:pin:barista', newBaristaPin);
+      await cmd('SET', 'cfg:pin:revoked_before:barista', String(Date.now()));
       updates.barista = newBaristaPin;
     }
     updateCachedPins(updates);

@@ -15,7 +15,7 @@ const order = (items, extra = {}) => call(orders, { method: 'POST', cookie: cust
 let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); };
 
 (async () => {
-  const O = await login('8044', '2.0.0.1'), B = await login('0508', '2.0.0.2');
+  let O = await login('8044', '2.0.0.1'), B = await login('0508', '2.0.0.2');
   const api = (path, o = {}) => call(owner, { url: '/api/owner/' + path, cookie: O, ...o });
 
   await t('only the owner can use the admin API', async () => {
@@ -148,6 +148,8 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
       body: { currentPin: '998877', newOwnerPin: '8044', newBaristaPin: '0508' }
     });
     assert.equal(revertRes.code, 200);
+    O = revertRes.headers['Set-Cookie'].split(';')[0];
+    B = await login('0508', '2.0.0.2');
   });
 
   await t('sales report counts only PAID orders, once, with item + payment breakdown', async () => {
