@@ -24,26 +24,23 @@ function showToast(message, type = 'success') {
 }
 
 let staffAudioCtx = null;
-function getStaffAudioCtx() {
+let soundEnabled = true;
+
+function unlockStaffAudio() {
   try {
-    if (!staffAudioCtx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) staffAudioCtx = new AC();
-    }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!staffAudioCtx && AC) staffAudioCtx = new AC();
     if (staffAudioCtx && staffAudioCtx.state === 'suspended') {
-      staffAudioCtx.resume();
+      staffAudioCtx.resume().catch(() => {});
     }
   } catch (e) {}
-  return staffAudioCtx;
 }
-document.addEventListener('click', () => getStaffAudioCtx(), { passive: true });
-document.addEventListener('keydown', () => getStaffAudioCtx(), { passive: true });
+['click', 'touchstart', 'pointerdown', 'keydown'].forEach(evt => {
+  window.addEventListener(evt, unlockStaffAudio, { passive: true });
+});
 
-function playChimeSound() {
+function doPlayChime(ctx) {
   try {
-    const ctx = getStaffAudioCtx();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume();
     const now = ctx.currentTime;
 
     // First Bell Ding (880 Hz - A5 with rich overtone)
@@ -56,8 +53,8 @@ function playChimeSound() {
     osc1Harmonic.type = 'triangle';
     osc1Harmonic.frequency.setValueAtTime(1760, now);
 
-    gain1.gain.setValueAtTime(0.7, now);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+    gain1.gain.setValueAtTime(0.8, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
 
     osc1.connect(gain1);
     osc1Harmonic.connect(gain1);
@@ -65,11 +62,11 @@ function playChimeSound() {
 
     osc1.start(now);
     osc1Harmonic.start(now);
-    osc1.stop(now + 0.7);
-    osc1Harmonic.stop(now + 0.7);
+    osc1.stop(now + 0.6);
+    osc1Harmonic.stop(now + 0.6);
 
     // Second Bell Dong (1318.5 Hz - E6 ringing decay)
-    const t2 = now + 0.2;
+    const t2 = now + 0.16;
     const osc2 = ctx.createOscillator();
     const osc2Harmonic = ctx.createOscillator();
     const gain2 = ctx.createGain();
@@ -79,8 +76,8 @@ function playChimeSound() {
     osc2Harmonic.type = 'triangle';
     osc2Harmonic.frequency.setValueAtTime(2637, t2);
 
-    gain2.gain.setValueAtTime(0.75, t2);
-    gain2.gain.exponentialRampToValueAtTime(0.001, t2 + 1.1);
+    gain2.gain.setValueAtTime(0.85, t2);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t2 + 1.0);
 
     osc2.connect(gain2);
     osc2Harmonic.connect(gain2);
@@ -88,11 +85,37 @@ function playChimeSound() {
 
     osc2.start(t2);
     osc2Harmonic.start(t2);
-    osc2.stop(t2 + 1.1);
-    osc2Harmonic.stop(t2 + 1.1);
+    osc2.stop(t2 + 1.0);
+    osc2Harmonic.stop(t2 + 1.0);
   } catch (e) {
-    console.warn('Audio notification error:', e);
+    console.warn('[Staff Audio] Tone error:', e);
   }
+}
+
+function playChimeSound() {
+  if (!soundEnabled) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!staffAudioCtx && AC) staffAudioCtx = new AC();
+    if (!staffAudioCtx) return;
+    if (staffAudioCtx.state === 'suspended') {
+      staffAudioCtx.resume().then(() => {
+        doPlayChime(staffAudioCtx);
+      }).catch(err => {
+        console.warn('[Staff Audio] Autoplay deferred:', err);
+      });
+    } else {
+      doPlayChime(staffAudioCtx);
+    }
+  } catch (e) {
+    console.warn('[Staff Audio] Notification error:', e);
+  }
+}
+
+function testSoundAlert() {
+  unlockStaffAudio();
+  playChimeSound();
+  showToast('🔔 Kitchen sound alert tested & active!', 'success');
 }
 
 
@@ -152,6 +175,9 @@ function start(r) {
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
         <span class="brand-title-small">COFFEE &amp; CRAVINGS · STAFF</span>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="btn-sound-alert" class="btn-godaddy-dark" style="font-size:12px; padding:8px 14px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" onclick="testSoundAlert()" title="Click to test kitchen sound alert">
+            🔔 Sound: ON
+          </button>
           <span class="kds-live-tag">${esc(role.toUpperCase())}</span>
           <button class="btn-godaddy-dark" style="font-size:12px; padding:8px 16px;" onclick="staffLogout()">Log out</button>
         </div>
@@ -163,7 +189,7 @@ function start(r) {
   showTab();
   fetchOrders();
   stopPolling();
-  pollTimer = setInterval(() => { if (document.visibilityState === 'visible') fetchOrders(); }, 8000);
+  pollTimer = setInterval(() => fetchOrders(), 4000);
 }
 function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && role) fetchOrders(); });
@@ -385,8 +411,8 @@ function renderKdsOrders() {
   // Calculate statistics
   const activeCount = allOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length;
   const prepCount = allOrders.filter(o => o.status === 'preparing').length;
-  const unpaidCounterCount = allOrders.filter(o => o.paymentStatus === 'UNPAID').length;
-  const totalSales = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+  const unpaidCounterCount = allOrders.filter(o => o.paymentStatus === 'UNPAID' && o.status !== 'cancelled').length;
+  const totalSales = allOrders.filter(o => o.status !== 'cancelled' && (o.paymentStatus === 'PAID' || o.status === 'completed')).reduce((sum, o) => sum + (o.total || 0), 0);
 
   statsRow.innerHTML = `
     <div class="kds-stat-card">
@@ -451,7 +477,11 @@ function renderKdsOrders() {
 
         <!-- Payment Status Badge -->
         <div>
-          ${isUnpaid ? `
+          ${order.status === 'cancelled' ? `
+            <span class="kds-payment-tag" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca; font-weight:600;">
+              ✕ CANCELLED &amp; VOIDED
+            </span>
+          ` : isUnpaid ? `
             <span class="kds-payment-tag unpaid-counter">
               ${order.paymentMethod === 'digital' ? '⚠️ VERIFY UPI PAYMENT' : '⚠️ COLLECT CASH'}: ₹${order.total.toFixed(2)}
               <button class="btn-mark-paid-inline" onclick="markOrderPaid('${order.id}')">MARK PAID</button>

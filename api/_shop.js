@@ -495,6 +495,30 @@ async function recordSale(o) {
   }
 }
 
+// Reverses a previously recorded sale when an order is cancelled
+async function voidSale(o) {
+  const sold = await cmd('GET', 'sold:' + o.id);
+  if (!sold) return;
+  await cmd('DEL', 'sold:' + o.id);
+  const { day, hour } = ist(new Date(o.createdAt).getTime());
+  const key = 'stats:' + day, P = (n) => Math.round(n * 100), m = o.paymentMethod === 'digital' ? 'digital' : 'counter';
+  const c = [
+    ['HINCRBY', key, 'o', -1],
+    ['HINCRBY', key, 'rev', -P(o.total)],
+    ['HINCRBY', key, 'sub', -P(o.subtotal)],
+    ['HINCRBY', key, 'disc', -P(o.discount || 0)],
+    ['HINCRBY', key, 'tax', -P(o.tax)],
+    ['HINCRBY', key, 'p_' + m, -P(o.total)],
+    ['HINCRBY', key, 'pc_' + m, -1],
+    ['HINCRBY', key, 'h' + hour, -P(o.total)],
+    ['HINCRBY', key, 'ho' + hour, -1]
+  ];
+  for (const i of o.items) {
+    c.push(['HINCRBY', key, 'q:' + i.id, -i.qty], ['HINCRBY', key, 'r:' + i.id, -P(i.price * i.qty)]);
+  }
+  await pipe(c);
+}
+
 module.exports = {
   ist, text, loadMenu, saveMenu, publicItem, upsertItem,
   loadDeals, cleanDeal, publicDeal, applyDealsToCart,
@@ -502,5 +526,5 @@ module.exports = {
   cleanPhone, isPhone, lookupCustomer, recordCustomerOrder, recordCustomerPayment, listCustomers, getCustomerOrders,
   recordCouponUsed, getCustomerCoupons,
   upsertCustomerUser, getCustomerUser, deleteCustomerData,
-  bump, recordSale
+  bump, recordSale, voidSale
 };

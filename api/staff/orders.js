@@ -1,6 +1,6 @@
 'use strict';
 const { HttpError, cmd, pipe, toObj, route, requireStaff, ORDER_TTL_S } = require('../_lib');
-const { recordSale, bump } = require('../_shop');
+const { recordSale, voidSale, bump } = require('../_shop');
 
 const STATUSES = ['new', 'preparing', 'ready', 'completed', 'cancelled'];
 
@@ -33,12 +33,16 @@ module.exports = route(['GET', 'PATCH'], async (req, res) => {
   if (f.status === 'awaiting_payment') throw new HttpError(409, 'This order is still waiting for the online payment.');
   const set = [];
   if (status !== undefined) set.push('status', status);
-  if (paid === true) set.push('paymentStatus', 'PAID');
-  if (status === 'cancelled' && cancelReason) {
-    set.push('cancelReason', String(cancelReason).slice(0, 100));
+  if (paid === true && status !== 'cancelled') set.push('paymentStatus', 'PAID');
+  if (status === 'cancelled') {
+    set.push('paymentStatus', 'CANCELLED');
+    if (cancelReason) {
+      set.push('cancelReason', String(cancelReason).slice(0, 100));
+    }
+    await voidSale(JSON.parse(f.data));
   }
   await cmd('HSET', key, ...set);
-  if (paid === true) await recordSale(JSON.parse(f.data));
+  if (paid === true && status !== 'cancelled') await recordSale(JSON.parse(f.data));
   await bump();
   res.json({ ok: true });
 });

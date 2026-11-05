@@ -81,7 +81,10 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
     assert.equal((await call(staffOrders, { method: 'PATCH', cookie: barista.cookie, body: { id, paid: true } })).code, 200);
     const o = (await call(staffOrders, { cookie: barista.cookie })).body.orders.find(x => x.id === id); assert.equal(o.status, 'preparing'); assert.equal(o.paymentStatus, 'PAID');
     assert.equal((await call(staffOrders, { method: 'PATCH', cookie: barista.cookie, body: { id, status: 'cancelled', cancelReason: 'Item out of stock' } })).code, 200);
-    const oc = (await call(staffOrders, { cookie: barista.cookie })).body.orders.find(x => x.id === id); assert.equal(oc.status, 'cancelled'); assert.equal(oc.cancelReason, 'Item out of stock');
+    const oc = (await call(staffOrders, { cookie: barista.cookie })).body.orders.find(x => x.id === id);
+    assert.equal(oc.status, 'cancelled');
+    assert.equal(oc.paymentStatus, 'CANCELLED');
+    assert.equal(oc.cancelReason, 'Item out of stock');
     assert.equal((await call(staffOrders, { method: 'PATCH', cookie: barista.cookie, body: { id, status: 'hacked' } })).code, 400);
     assert.equal((await call(staffOrders, { method: 'PATCH', cookie: barista.cookie, body: { id: 'CC-9999999', status: 'ready' } })).code, 404);
   });
