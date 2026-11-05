@@ -38,3 +38,4 @@ To help us triage and patch the issue swiftly, please include:
 - **Assessment:** We will confirm the issue, rate its severity, and provide regular progress updates as we work on a fix.
 - **Resolution:** Critical security patches will typically be released within **72 hours** of confirmation.
 - **Credit:** If you wish to be credited for your discovery, we will acknowledge you in the patch notes upon public release.
+

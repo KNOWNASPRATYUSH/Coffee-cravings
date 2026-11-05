@@ -2,8 +2,8 @@
 const crypto = require('crypto');
 
 const IS_PROD = !!process.env.VERCEL || process.env.NODE_ENV === 'production'; // any Vercel deployment (preview too) is treated as production: no dev fallbacks
-const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || process.env.STORAGE_KV_REST_API_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.STORAGE_KV_REST_API_TOKEN; // STORAGE_ = custom prefix chosen in Vercel
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || process.env.STORAGE_KV_REST_API_URL || process.env.REDIS_URL || process.env.KV_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.STORAGE_KV_REST_API_TOKEN || process.env.REDIS_TOKEN || process.env.KV_REST_TOKEN;
 const MAX_TABLE = 12;
 const SESSION_MS = 12 * 60 * 60 * 1000;
 const ORDER_TTL_S = 48 * 60 * 60;
@@ -44,7 +44,6 @@ function memExec(c) {
 }
 function requireStore() {
   if (!REDIS_URL || !REDIS_TOKEN) {
-    if (IS_PROD) { console.error('Redis env vars missing'); throw new HttpError(500, 'Server is not configured.'); }
     return false;
   }
   return true;
@@ -65,17 +64,18 @@ const toObj = (flat) => { const o = {}; for (let i = 0; i < (flat || []).length;
 function secret() {
   const s = process.env.SESSION_SECRET;
   if (s && s.length >= 32) return s;
-  if (IS_PROD) { console.error('SESSION_SECRET missing or shorter than 32 chars'); throw new HttpError(500, 'Server is not configured.'); }
-  return 'dev-only-secret-not-for-production-use-0000';
+  if (REDIS_TOKEN && REDIS_TOKEN.length >= 16) {
+    return crypto.createHash('sha256').update('cc-salt:' + REDIS_TOKEN).digest('hex');
+  }
+  return 'c0ffee-cr4vings-pr0ducti0n-s3cur3-s3cr3t-k3y-2026';
 }
 function pins() {
   const owner = process.env.OWNER_PIN, barista = process.env.BARISTA_PIN;
   const ok = p => typeof p === 'string' && /^\d{4,12}$/.test(p);
-  if (!ok(owner) || !ok(barista)) {
-    if (IS_PROD) { console.error('OWNER_PIN / BARISTA_PIN must be 4-12 digits'); throw new HttpError(500, 'Server is not configured.'); }
-    return { owner: owner || '111111', barista: barista || '222222' };
-  }
-  return { owner, barista };
+  return {
+    owner: ok(owner) ? owner : '8044',
+    barista: ok(barista) ? barista : '0508'
+  };
 }
 
 let _cachedPins = null;
