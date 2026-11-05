@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "engines": {
-    "node": "26.x"
+    "node": "22.x"
   },
   "scripts": {
     "test": "node tests/api.test.js && node tests/payments.test.js && node tests/owner.test.js && node tests/crm-deals.test.js && node tests/customer-auth.test.js"
