@@ -12,7 +12,8 @@ const STATUS_LABEL = {
   new: 'Order Received',
   preparing: 'Preparing in Kitchen',
   ready: 'Ready for Pickup',
-  completed: 'Completed'
+  completed: 'Completed',
+  cancelled: 'Cancelled (Unavailable)'
 };
 
 module.exports = route(['GET'], async (req, res) => {
@@ -115,6 +116,7 @@ module.exports = route(['GET'], async (req, res) => {
       tax: stored.tax || 0,
       items,
       table,
+      cancelReason: liveRaw.cancelReason || stored.cancelReason || null,
       createdAt: stored.at || (liveData && liveData.createdAt) || '',
       expired: !liveRaw.status // true when archived into lifetime history
     };

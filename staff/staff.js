@@ -217,6 +217,11 @@ async function patchOrder(body, okMsg) {
 }
 function updateOrderStatus(orderId, newStatus) { return patchOrder({ id: orderId, status: newStatus }, `Order ${orderId} marked as ${newStatus.toUpperCase()}`); }
 function markOrderPaid(orderId) { return patchOrder({ id: orderId, paid: true }, `Payment received for ${orderId}. Marked as PAID.`); }
+async function cancelOrderPrompt(orderId) {
+  const reason = prompt('Reason for cancelling order ' + orderId + ' (e.g. Product not available / out of stock):', 'Product not available');
+  if (reason === null) return;
+  await patchOrder({ id: orderId, status: 'cancelled', cancelReason: reason.trim() || 'Product not available' }, `Order ${orderId} cancelled`);
+}
 
 // ---------------- table QR (owner) ----------------
 async function generatePlacardQr(tableNum) {
@@ -349,6 +354,7 @@ function renderBaristaKdsPage() {
         <button class="kds-tab-btn ${kdsFilter === 'preparing' ? 'active' : ''}" onclick="setKdsFilter('preparing')">Preparing</button>
         <button class="kds-tab-btn ${kdsFilter === 'ready' ? 'active' : ''}" onclick="setKdsFilter('ready')">Ready to Serve</button>
         <button class="kds-tab-btn ${kdsFilter === 'completed' ? 'active' : ''}" onclick="setKdsFilter('completed')">Completed</button>
+        <button class="kds-tab-btn ${kdsFilter === 'cancelled' ? 'active' : ''}" onclick="setKdsFilter('cancelled')">Cancelled</button>
       </div>
 
       <!-- Orders Grid -->
@@ -377,7 +383,7 @@ function renderKdsOrders() {
   const allOrders = staffOrders;
 
   // Calculate statistics
-  const activeCount = allOrders.filter(o => o.status !== 'completed').length;
+  const activeCount = allOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length;
   const prepCount = allOrders.filter(o => o.status === 'preparing').length;
   const unpaidCounterCount = allOrders.filter(o => o.paymentStatus === 'UNPAID').length;
   const totalSales = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
@@ -478,7 +484,7 @@ function renderKdsOrders() {
         </div>
 
         <!-- Status Actions -->
-        <div class="kds-actions-row">
+        <div class="kds-actions-row" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           ${order.status === 'new' ? `
             <button class="kds-action-btn btn-prepare" onclick="updateOrderStatus('${order.id}', 'preparing')">
               Start Preparing 👨‍🍳
@@ -491,9 +497,16 @@ function renderKdsOrders() {
             <button class="kds-action-btn btn-serve" onclick="updateOrderStatus('${order.id}', 'completed')">
               Serve &amp; Complete ✓
             </button>
+          ` : order.status === 'cancelled' ? `
+            <span style="font-size:12px; color:#dc2626; font-weight:600;">✕ Cancelled (${esc(order.cancelReason || 'Product unavailable')})</span>
           ` : `
             <span style="font-size:12px; color:#10b981; font-weight:600;">✓ Completed &amp; Served</span>
           `}
+          ${(order.status !== 'completed' && order.status !== 'cancelled') ? `
+            <button class="kds-action-btn btn-cancel-order" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:12px; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:600; margin-left:auto;" onclick="cancelOrderPrompt('${order.id}')">
+              ✕ Cancel
+            </button>
+          ` : ''}
         </div>
       </div>
     `;

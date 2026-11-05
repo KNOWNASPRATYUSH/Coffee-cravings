@@ -1500,14 +1500,16 @@ const ORDER_STATUS_ICON = {
   new: '🧾',
   preparing: '☕',
   ready: '✅',
-  completed: '✓'
+  completed: '✓',
+  cancelled: '✕'
 };
 const ORDER_STATUS_COLOR = {
   awaiting_payment: '#d97706',
   new: '#2563eb',
   preparing: '#7c3aed',
   ready: '#059669',
-  completed: '#6b7280'
+  completed: '#6b7280',
+  cancelled: '#dc2626'
 };
 
 function renderMyOrdersPage() {
@@ -1633,7 +1635,7 @@ async function loadAndRenderMyOrders() {
     container.innerHTML = orders.map(o => {
       const icon = ORDER_STATUS_ICON[o.status] || '•';
       const color = ORDER_STATUS_COLOR[o.status] || '#6b7280';
-      const isActive = !['completed'].includes(o.status) && !o.expired;
+      const isActive = !['completed', 'cancelled'].includes(o.status) && !o.expired;
       const items = Array.isArray(o.items) ? o.items : [];
       const itemsHtml = items.map(it =>
         `<div style="display:flex; justify-content:space-between; font-size:13px; color:#374151; margin-bottom:4px;">
@@ -1679,6 +1681,7 @@ async function loadAndRenderMyOrders() {
               <span style="font-size:22px; ${pulseStyle}">${icon}</span>
               <div>
                 <div style="font-weight:700; color:${color}; font-size:14px;">${o.statusLabel || o.status}</div>
+                ${o.cancelReason ? `<div style="font-size:12px; color:#ef4444; font-weight:500;">Reason: ${escapeHtml(o.cancelReason)}</div>` : ''}
                 <div style="font-size:11px; color:#9ca3af;">${formattedDate}</div>
               </div>
             </div>
