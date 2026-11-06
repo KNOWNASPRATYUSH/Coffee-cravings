@@ -275,7 +275,7 @@ function renderQrTablesPage() {
           <div>
             <h3 style="font-family: var(--font-display); font-size: 16px; margin-bottom: 8px;">1. Select Table Number:</h3>
             <div class="qr-table-picker-grid">
-              ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => `
+              ${[1, 2, 3, 4, 5, 6].map(n => `
                 <button 
                   class="qr-table-chip ${selectedQrPlacardTable === n ? 'selected' : ''}" 
                   onclick="selectPlacardTable(${n})"

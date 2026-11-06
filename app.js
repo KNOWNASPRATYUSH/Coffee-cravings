@@ -78,7 +78,7 @@ async function applyCoupon() {
 }
 function removeCoupon() { appliedCoupon = null; renderCartDrawer(); }
 let orderKey = null;
-let currentTable = 0; // 0 = Walk-in/takeaway, 1-12 = Table number
+let currentTable = 0; // 0 = Walk-in/takeaway, 1-6 = Table number
 let cart = []; // [{ id, qty, note }]
 let currentPaymentMethod = 'digital'; // 'digital' (UPI) or 'counter' (Cash)
 let orderSearchFilter = '';
@@ -102,7 +102,7 @@ function initStorage() {
     const p = new URLSearchParams(window.location.search);
     const t = parseInt(p.get('table'), 10);
     const sig = p.get('sig');
-    if (t >= 1 && t <= 12 && sig) {
+    if (t >= 1 && t <= 6 && sig) {
       sessionStorage.setItem('cc_table', String(t));
       sessionStorage.setItem('cc_table_sig', sig);
       history.replaceState(null, '', window.location.pathname + window.location.hash);
