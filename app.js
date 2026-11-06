@@ -304,7 +304,7 @@ function renderHomePage() {
           return `
           <div class="product-card">
             <div class="product-img-box">
-              <img src="${item.image}" alt="${item.name}" class="product-img" loading="lazy" />
+              <img src="${item.image}" alt="${item.name}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=700&q=80';" />
               ${dealBadge || (item.badge ? `<span class="product-badge">${item.badge}</span>` : '')}
             </div>
             <div class="product-card-body">
@@ -518,7 +518,7 @@ function renderOrderPage() {
             return `
             <div class="product-card">
               <div class="product-img-box">
-                <img src="${item.image}" alt="${item.name}" class="product-img" loading="lazy" />
+                <img src="${item.image}" alt="${item.name}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=700&q=80';" />
                 ${dealBadge || (item.badge ? `<span class="product-badge">${item.badge}</span>` : '')}
               </div>
               <div class="product-card-body">
@@ -734,7 +734,7 @@ function handleOrderSearchInput(query) {
       grid.innerHTML = filtered.map(item => `
         <div class="product-card">
           <div class="product-img-box">
-            <img src="${item.image}" alt="${item.name}" class="product-img" loading="lazy" />
+            <img src="${item.image}" alt="${item.name}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=700&q=80';" />
             ${item.badge ? `<span class="product-badge">${item.badge}</span>` : ''}
           </div>
           <div class="product-card-body">
@@ -877,6 +877,101 @@ function renderCartCustomerState() {
   }
 }
 
+function getSuitedAddonsForProduct(product) {
+  if (!product || !product.id || !product.category) return [];
+
+  // Exclude add-ons themselves from having suggestions
+  if (product.category === 'add-ons') return [];
+
+  // Specifically map items that taste significantly better with sweet/dessert add-ons
+  const map = {
+    // Classic Shakes
+    'mango-shake': ['vanilla-ice-cream', 'oreo-crumbles', 'white-chocochips'],
+    'strawberry-shake': ['vanilla-ice-cream', 'white-chocochips', 'oreo-crumbles'],
+    'banana-shake': ['vanilla-ice-cream', 'black-chocochips', 'oreo-crumbles'],
+    'black-currant-shake': ['vanilla-ice-cream', 'white-chocochips'],
+    'oreo-slush': ['oreo-crumbles', 'chocolate-ice-cream', 'kitkat-bits'],
+    'choco-coco-shake': ['chocolate-ice-cream', 'black-chocochips', 'kitkat-bits'],
+    'butterscotch-ice-cream-shake': ['vanilla-ice-cream', 'white-chocochips', 'oreo-crumbles'],
+    'vanilla-ice-cream-shake': ['black-chocochips', 'oreo-crumbles', 'kitkat-bits'],
+    'kesar-pista-ice-cream-shake': ['vanilla-ice-cream', 'white-chocochips'],
+
+    // Premium Shakes
+    'caramel-oreo': ['oreo-crumbles', 'vanilla-ice-cream', 'black-chocochips'],
+    'caramel-chocochips': ['black-chocochips', 'white-chocochips', 'vanilla-ice-cream'],
+    'chocochip-shake': ['black-chocochips', 'chocolate-ice-cream', 'oreo-crumbles'],
+    'hazelnut-chocochips': ['black-chocochips', 'chocolate-ice-cream', 'kitkat-bits'],
+    'oreo-kitkat-mudshake': ['kitkat-bits', 'oreo-crumbles', 'chocolate-ice-cream'],
+    'real-fruit-shake': ['vanilla-ice-cream', 'white-chocochips'],
+    'butter-popcorn-shake': ['vanilla-ice-cream', 'white-chocochips'],
+
+    // Frappes & Cold Coffees
+    'og-cold-coffee': ['vanilla-ice-cream', 'chocolate-ice-cream', 'black-chocochips'],
+    'iced-latte': ['vanilla-ice-cream', 'black-chocochips'],
+    'vietnamese-iced-latte': ['vanilla-ice-cream', 'black-chocochips'],
+    'hazelnut-frappe': ['chocolate-ice-cream', 'black-chocochips', 'kitkat-bits'],
+    'french-vanilla-frappe': ['vanilla-ice-cream', 'white-chocochips', 'oreo-crumbles'],
+    'caramel-frappe': ['vanilla-ice-cream', 'white-chocochips', 'black-chocochips'],
+    'iced-mocha': ['chocolate-ice-cream', 'black-chocochips', 'oreo-crumbles'],
+
+    // Hot Chocolates
+    'belgian-hot-chocolate': ['black-chocochips', 'white-chocochips', 'vanilla-ice-cream'],
+    'hazelnut-hot-chocolate': ['black-chocochips', 'kitkat-bits', 'chocolate-ice-cream'],
+    'irish-cream-hot-chocolate': ['white-chocochips', 'vanilla-ice-cream'],
+
+    // Belgian Waffles
+    'kitkat-break': ['kitkat-bits', 'vanilla-ice-cream', 'chocolate-ice-cream'],
+    'red-velvet-cream': ['white-chocochips', 'vanilla-ice-cream'],
+    'triple-chocolate-therapy': ['chocolate-ice-cream', 'black-chocochips', 'oreo-crumbles'],
+    'nutella-banana': ['vanilla-ice-cream', 'black-chocochips', 'kitkat-bits'],
+
+    // Desserts
+    'brownie-sizzler': ['vanilla-ice-cream', 'chocolate-ice-cream', 'black-chocochips'],
+    'belgian-banoffee-pancake': ['vanilla-ice-cream', 'black-chocochips', 'white-chocochips'],
+    'italian-tiramisu': ['black-chocochips', 'chocolate-ice-cream'],
+    'cheesecake': ['white-chocochips', 'vanilla-ice-cream'],
+
+    // Sweet Specialty Coffees
+    'caramel-cappuccino': ['vanilla-ice-cream', 'black-chocochips'],
+    'hazelnut-cappuccino': ['chocolate-ice-cream', 'black-chocochips'],
+    'caffe-mocha': ['black-chocochips', 'chocolate-ice-cream', 'vanilla-ice-cream']
+  };
+
+  if (map[product.id]) return map[product.id];
+
+  // Category fallbacks for shakes, frappes, waffles, desserts
+  if (product.category === 'classic-shakes' || product.category === 'premium-shakes') {
+    return ['vanilla-ice-cream', 'oreo-crumbles', 'black-chocochips'];
+  }
+  if (product.category === 'frappes') {
+    return ['vanilla-ice-cream', 'chocolate-ice-cream'];
+  }
+  if (product.category === 'hot-chocolate') {
+    return ['black-chocochips', 'white-chocochips'];
+  }
+  if (product.category === 'waffles' || product.category === 'desserts') {
+    return ['vanilla-ice-cream', 'chocolate-ice-cream', 'oreo-crumbles'];
+  }
+
+  // All savory categories (burgers, pasta, pizza, fries-sides, mocktails, budget-meals) return []
+  return [];
+}
+
+function addSuggestedAddon(addonId) {
+  const item = MENU_ITEMS.find(i => i.id === addonId);
+  if (!item) return;
+
+  const existing = cart.find(c => c.id === addonId);
+  if (existing) {
+    existing.qty += 1;
+  } else {
+    cart.push({ id: addonId, qty: 1, note: '' });
+  }
+
+  saveCart();
+  showToast(`Added ${item.name} (+₹${item.price}) to order!`, 'success');
+}
+
 function renderCartDrawer() {
   const container = document.getElementById('cart-items-container');
   const footer = document.getElementById('cart-drawer-footer');
@@ -914,20 +1009,59 @@ function renderCartDrawer() {
     const itemTotal = product.price * cartItem.qty;
     subtotal += itemTotal;
 
-    return `
-      <div class="cart-item-row">
-        <img src="${product.image}" alt="${product.name}" class="cart-item-img" />
-        <div class="cart-item-details">
-          <div>
-            <h4 class="cart-item-name">${product.name}</h4>
-            <span class="cart-item-price">₹${product.price.toFixed(2)}</span>
+    // Check suited add-ons for this product
+    const suitedAddonIds = getSuitedAddonsForProduct(product);
+    let addonsHtml = '';
+    if (suitedAddonIds && suitedAddonIds.length > 0) {
+      const chips = suitedAddonIds.map(addonId => {
+        const addon = MENU_ITEMS.find(m => m.id === addonId);
+        if (!addon) return '';
+        const inCart = cart.some(c => c.id === addonId);
+        if (inCart) {
+          return `
+            <button type="button" class="addon-chip-btn is-added" title="Already in your order">
+              ✓ ${addon.name} <span class="addon-chip-price">Added</span>
+            </button>
+          `;
+        }
+        return `
+          <button type="button" class="addon-chip-btn" onclick="addSuggestedAddon('${addon.id}')" title="Tap to add ${addon.name} (+₹${addon.price})">
+            + ${addon.name} <span class="addon-chip-price">₹${addon.price}</span>
+          </button>
+        `;
+      }).filter(Boolean).join('');
+
+      if (chips) {
+        addonsHtml = `
+          <div class="cart-item-addons-suggest">
+            <div class="addon-suggest-header">
+              <span>✨ Recommended Add-ons:</span>
+            </div>
+            <div class="addon-chips-list">
+              ${chips}
+            </div>
           </div>
-          <div class="cart-qty-controls">
-            <button class="qty-btn" onclick="changeCartQty('${product.id}', -1)">-</button>
-            <span class="qty-number">${cartItem.qty}</span>
-            <button class="qty-btn" onclick="changeCartQty('${product.id}', 1)">+</button>
+        `;
+      }
+    }
+
+    return `
+      <div class="cart-item-group">
+        <div class="cart-item-row">
+          <img src="${product.image}" alt="${product.name}" class="cart-item-img" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=700&q=80';" />
+          <div class="cart-item-details">
+            <div>
+              <h4 class="cart-item-name">${product.name}</h4>
+              <span class="cart-item-price">₹${product.price.toFixed(2)}</span>
+            </div>
+            <div class="cart-qty-controls">
+              <button class="qty-btn" onclick="changeCartQty('${product.id}', -1)">-</button>
+              <span class="qty-number">${cartItem.qty}</span>
+              <button class="qty-btn" onclick="changeCartQty('${product.id}', 1)">+</button>
+            </div>
           </div>
         </div>
+        ${addonsHtml}
       </div>
     `;
   }).join('');
@@ -950,7 +1084,7 @@ function renderCartDrawer() {
       `);
       promoHtml += `
         <div class="cart-item-row" style="background:#f0fdf4; border-radius:6px; padding:8px 10px; border:1px dashed #86efac; margin-top:6px;">
-          <img src="${freeItem.image}" alt="${freeItem.name}" class="cart-item-img" />
+          <img src="${freeItem.image}" alt="${freeItem.name}" class="cart-item-img" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=700&q=80';" />
           <div class="cart-item-details">
             <div>
               <h4 class="cart-item-name">${freeItem.name} <span style="font-size:10px; background:#16a34a; color:#fff; padding:1px 5px; border-radius:3px; margin-left:4px; font-weight:700;">FREE PROMO</span></h4>
@@ -1425,7 +1559,7 @@ function handleMenuSearch(q) {
   container.innerHTML = matches.map(item => `
     <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f0f0f0;">
       <div style="display:flex; align-items:center; gap:12px;">
-        <img src="${item.image}" alt="${item.name}" style="width:48px; height:48px; border-radius:4px; object-fit:cover;" />
+        <img src="${item.image}" alt="${item.name}" style="width:48px; height:48px; border-radius:4px; object-fit:cover;" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=700&q=80';" />
         <div>
           <h4 style="font-size:15px; font-family:var(--font-serif);">${item.name}</h4>
           <span style="font-size:13px; font-weight:600;">₹${item.price.toFixed(2)}</span>

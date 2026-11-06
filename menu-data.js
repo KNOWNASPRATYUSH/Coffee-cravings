@@ -67,7 +67,7 @@ const MENU_ITEMS = [
     categoryName: 'Coffee',
     price: 179,
     description: 'Fresh espresso and steamed frothy milk flavored with roasted European hazelnuts.',
-    image: 'https://images.unsplash.com/photo-1585494156145-1c60a4fe9d2b?auto=format&fit=crop&w=700&q=80',
+    image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=700&q=80',
     badge: 'Must Try',
     featured: false
   },
@@ -148,7 +148,7 @@ const MENU_ITEMS = [
     categoryName: 'Frappe & Iced',
     price: 149,
     description: 'A luscious blend of aromatic French vanilla extract, rich espresso, and velvety milk.',
-    image: 'https://images.unsplash.com/photo-1558857563-b37cf537b036?auto=format&fit=crop&w=700&q=80',
+    image: 'https://images.unsplash.com/photo-1577805947697-89e18249d767?auto=format&fit=crop&w=700&q=80',
     badge: 'Sweet & Creamy',
     featured: false
   },
@@ -531,7 +531,7 @@ const MENU_ITEMS = [
     categoryName: 'Burgers & Sandwiches',
     price: 179,
     description: 'Golden sweet corn kernels smothered in gooey melted cheddar on toasted crusty bread.',
-    image: 'https://images.unsplash.com/photo-1619096252214-efc6b45d2971?auto=format&fit=crop&w=700&q=80',
+    image: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=700&q=80',
     badge: 'Comfort',
     featured: false
   },
@@ -557,7 +557,7 @@ const MENU_ITEMS = [
     categoryName: 'Pasta',
     price: 179,
     description: 'Al dente penne pasta tossed in a fiery Italian garlic and red chili tomato basil sauce.',
-    image: 'https://images.unsplash.com/photo-1621996346565-e3d5d62810ef?auto=format&fit=crop&w=700&q=80',
+    image: 'https://images.unsplash.com/photo-1608897013039-887f21d8c804?auto=format&fit=crop&w=700&q=80',
     badge: 'Red Sauce',
     featured: false
   },
@@ -686,7 +686,7 @@ const MENU_ITEMS = [
     categoryName: 'Fries & Sides',
     price: 79,
     description: 'Golden-brown crispy potato fries lightly sprinkled with sea salt.',
-    image: 'https://images.unsplash.com/photo-1576107232684-1279f3908594?auto=format&fit=crop&w=700&q=80',
+    image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=700&q=80',
     badge: 'Crunchy',
     featured: false
   },
@@ -841,7 +841,7 @@ const MENU_ITEMS = [
     categoryName: 'Budget Meals',
     price: 249,
     description: 'Penne Arrabiata + Peach Iced Tea combo meal.',
-    image: 'https://images.unsplash.com/photo-1621996346565-e3d5d62810ef?auto=format&fit=crop&w=700&q=80',
+    image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=700&q=80',
     badge: 'Value Combo',
     featured: false
   },
