@@ -112,13 +112,6 @@ function playChimeSound() {
   }
 }
 
-function testSoundAlert() {
-  unlockStaffAudio();
-  playChimeSound();
-  showToast('🔔 Kitchen sound alert tested & active!', 'success');
-}
-
-
 async function api(path, opts = {}) {
   const res = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...opts });
   let data = {};
@@ -175,9 +168,6 @@ function start(r) {
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
         <span class="brand-title-small">COFFEE &amp; CRAVINGS · STAFF</span>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button id="btn-sound-alert" class="btn-godaddy-dark" style="font-size:12px; padding:8px 14px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" onclick="testSoundAlert()" title="Click to test kitchen sound alert">
-            🔔 Sound: ON
-          </button>
           <span class="kds-live-tag">${esc(role.toUpperCase())}</span>
           <button class="btn-godaddy-dark" style="font-size:12px; padding:8px 16px;" onclick="staffLogout()">Log out</button>
         </div>
