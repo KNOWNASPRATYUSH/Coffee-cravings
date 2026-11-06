@@ -426,7 +426,22 @@ function renderHomePage() {
 function renderOrderPage() {
   const filteredItems = getFilteredMenuItems();
 
-  const CAT_LABELS = { coffee: 'Coffee', frappes: 'Frappes & Coolers', pastas: 'Pastas & Snacks', burgers: 'Burgers & Fries' };
+  const CAT_LABELS = {
+    coffee: 'Coffee',
+    frappes: 'Frappe & Iced',
+    'hot-chocolate': 'Hot Chocolates',
+    'classic-shakes': 'Classic Shakes',
+    'premium-shakes': 'Premium Shakes',
+    mocktails: 'Mocktails',
+    burgers: 'Burgers & Sandwiches',
+    pasta: 'Pasta',
+    pizza: 'Pizza',
+    'fries-sides': 'Fries & Sides',
+    waffles: 'Belgian Waffles',
+    desserts: 'Desserts',
+    'budget-meals': 'Budget Meals',
+    'add-ons': 'Add-Ons'
+  };
   const catKeys = [...new Set(MENU_ITEMS.map(i => i.category))];
   const categories = [
     { key: 'all', name: 'All Products', count: MENU_ITEMS.length },

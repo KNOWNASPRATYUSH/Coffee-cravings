@@ -46,7 +46,7 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
   });
   await t('customer order: server prices, UNPAID even if digital', async () => {
     const r = await call(orders, { method: 'POST', body: { ...base, items: [{ id: 'cappuccino', qty: 2, price: 1 }], total: 1, paymentStatus: 'PAID' } });
-    assert.equal(r.code, 201); assert.equal(r.body.order.subtotal, 258); assert.equal(r.body.order.total, 270.9); assert.equal(r.body.order.paymentStatus, 'UNPAID');
+    assert.equal(r.code, 201); assert.equal(r.body.order.subtotal, 318); assert.equal(r.body.order.total, 333.9); assert.equal(r.body.order.paymentStatus, 'UNPAID');
   });
   await t('same checkout key twice = same order, not a duplicate', async () => {
     const a = await call(orders, { method: 'POST', body: base }); assert.equal(a.code, 200); assert.equal(a.body.order.id, (await call(orders, { method: 'POST', body: base })).body.order.id);

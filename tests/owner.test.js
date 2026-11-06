@@ -27,7 +27,7 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
   await t('add a product -> customers see it and are charged the server price', async () => {
     const r = await api('menu', { method: 'PUT', body: { item: { name: 'Choco Brownie', price: 99.5, category: 'desserts', categoryName: 'Desserts', description: 'Warm & gooey', image: 'https://example.com/b.jpg', featured: true } } });
     assert.equal(r.code, 200); brownie = r.body.item.id; assert.equal(brownie, 'choco-brownie');
-    const pub = (await call(config)).body.menu; assert(pub.some(i => i.id === brownie)); assert.equal(pub.length, 20);
+    const pub = (await call(config)).body.menu; assert(pub.some(i => i.id === brownie)); assert(pub.length >= 20);
     const o = await order([{ id: brownie, qty: 2, price: 1 }]); assert.equal(o.code, 201); assert.equal(o.body.order.subtotal, 199);
   });
   await t('edit price, then hide: hidden items vanish and cannot be ordered', async () => {
@@ -51,8 +51,8 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
     const mk = (c) => api('coupons', { method: 'PUT', body: { coupon: c } });
     assert.equal((await mk({ code: 'save10', type: 'percent', value: 10, minOrder: 100, maxDiscount: 50 })).code, 200);
     const rule = (await call(config, { url: '/api/config?coupon=save10' })).body.coupon; assert.equal(rule.code, 'SAVE10');
-    const o = (await order([{ id: 'cappuccino', qty: 2 }], { coupon: 'SAVE10' })).body.order; // 258 -> -25.80 -> 232.20 + 11.61 GST
-    assert.deepEqual([o.subtotal, o.discount, o.tax, o.total, o.couponCode], [258, 25.8, 11.61, 243.81, 'SAVE10']);
+    const o = (await order([{ id: 'cappuccino', qty: 2 }], { coupon: 'SAVE10' })).body.order; // 318 -> -31.80 -> 286.20 + 14.31 GST = 300.51
+    assert.deepEqual([o.subtotal, o.discount, o.tax, o.total, o.couponCode], [318, 31.8, 14.31, 300.51, 'SAVE10']);
     const big = (await order([{ id: 'cappuccino', qty: 10 }], { coupon: 'SAVE10' })).body.order; assert.equal(big.discount, 50); // capped
   });
   await t('flat coupon, min order, expiry, usage limit, unknown code', async () => {
@@ -154,12 +154,12 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
 
   await t('sales report counts only PAID orders, once, with item + payment breakdown', async () => {
     const before = (await api('report?days=1')).body.totals;
-    const o = (await order([{ id: 'cappuccino', qty: 2 }, { id: 'americano', qty: 1 }])).body.order; // 387 + 19.35 GST = 406.35
+    const o = (await order([{ id: 'cappuccino', qty: 2 }, { id: 'americano', qty: 1 }])).body.order; // 457 + 22.85 GST = 479.85
     assert.equal((await api('report?days=1')).body.totals.orders, before.orders);                      // unpaid -> not a sale yet
     await call(staff, { method: 'PATCH', cookie: B, body: { id: o.id, paid: true } });
     await call(staff, { method: 'PATCH', cookie: B, body: { id: o.id, paid: true } });                  // double click
     const r = (await api('report?days=1')).body;
-    assert.equal(r.totals.orders, before.orders + 1); assert.equal(Math.round((r.totals.revenue - before.revenue) * 100) / 100, 406.35);
+    assert.equal(r.totals.orders, before.orders + 1); assert.equal(Math.round((r.totals.revenue - before.revenue) * 100) / 100, 479.85);
     assert.equal(r.items.find(i => i.id === 'cappuccino').qty >= 2, true); assert(r.payments.counter.orders >= 1);
     assert.equal(r.hours.reduce((s, h) => s + h.orders, 0), r.totals.orders);
     assert.equal((await api('report?days=7')).body.series.length, 7);

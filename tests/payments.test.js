@@ -26,7 +26,7 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
   let o1, p1;
   await t('online order is created awaiting payment and HIDDEN from barista', async () => {
     const r = await mk('online-0001'); assert.equal(r.code, 201); o1 = r.body.order; p1 = r.body.payment;
-    assert.equal(o1.status, 'awaiting_payment'); assert.equal(o1.paymentStatus, 'PENDING'); assert.equal(p1.amount, 13545); assert.equal(p1.keyId, 'rzp_test_abc');
+    assert.equal(o1.status, 'awaiting_payment'); assert.equal(o1.paymentStatus, 'PENDING'); assert.equal(p1.amount, 16695); assert.equal(p1.keyId, 'rzp_test_abc');
     assert(!(await barista()).some(o => o.id === o1.id));
   });
   await t('retry of same checkout returns same pending order + same payment window data', async () => {

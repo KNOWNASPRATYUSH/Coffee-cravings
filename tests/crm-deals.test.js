@@ -54,7 +54,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     });
     assert.equal(r.code, 201);
     const o = r.body.order;
-    assert.equal(o.subtotal, 258); // 2 * 129
+    assert.equal(o.subtotal, 318); // 2 * 159
     const freeItem = o.items.find(i => i.id === 'salted-french-fries');
     assert(freeItem, 'Free fries should be in order items');
     assert.equal(freeItem.qty, 1);
@@ -68,8 +68,8 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     });
     assert.equal(r.code, 201);
     const o = r.body.order;
-    // Subtotal should only be for the 2 Cappuccinos (258), fries are free!
-    assert.equal(o.subtotal, 258);
+    // Subtotal should only be for the 2 Cappuccinos (318), fries are free!
+    assert.equal(o.subtotal, 318);
     const fries = o.items.find(i => i.id === 'salted-french-fries');
     assert.equal(fries.price, 0);
   });
@@ -86,7 +86,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     });
     assert.equal(r.code, 201);
     const o = r.body.order;
-    assert.equal(o.subtotal, 129); // paid for 1
+    assert.equal(o.subtotal, 139); // paid for 1
     const totalAmericanos = o.items.filter(i => i.id === 'americano').reduce((s, i) => s + i.qty, 0);
     assert.equal(totalAmericanos, 2, 'Customer should receive 2 americanos (1 paid, 1 free)');
   });

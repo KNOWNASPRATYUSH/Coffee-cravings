@@ -82,7 +82,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     const capp = order.items.find(i => i.id === 'cappuccino');
     assert(capp, 'Cappuccino should be in stored receipt');
     assert.equal(capp.qty, 2);
-    assert.equal(capp.price, 129);
+    assert.equal(capp.price, 159);
   });
 
   // 5b. Live tracking via recent order IDs

@@ -19,7 +19,21 @@ const isPhone = (v) => {
 // ---------- menu ----------
 async function loadMenu() {
   const m = parse(await cmd('GET', 'menu:v1'));
-  return Array.isArray(m) && m.length ? m : DEFAULT_MENU.map(i => ({ ...i, available: true }));
+  if (!Array.isArray(m) || !m.length) {
+    return DEFAULT_MENU.map(i => ({ ...i, available: true }));
+  }
+  const existingMap = new Map(m.map(i => [i.id, i]));
+  const merged = DEFAULT_MENU.map(def => {
+    const ex = existingMap.get(def.id);
+    if (!ex) return { ...def, available: true };
+    return { ...def, available: ex.available !== false };
+  });
+  for (const item of m) {
+    if (item && item.id && !DEFAULT_MENU.some(d => d.id === item.id)) {
+      merged.push(item);
+    }
+  }
+  return merged;
 }
 const publicItem = (i) => ({ id: i.id, name: i.name, category: i.category, categoryName: i.categoryName, price: i.price,
   description: i.description, image: i.image, badge: i.badge || '', featured: !!i.featured });
