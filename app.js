@@ -2306,7 +2306,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Determine starting route
-  const hash = window.location.hash.replace('#', '') || 'home';
-  navigateTo(hash);
+  // Determine starting route: check pathname first, then hash, default to 'home'
+  let initialRoute = window.location.hash.replace('#', '');
+  if (!initialRoute) {
+    const p = window.location.pathname.replace(/^\/|\/$/g, '');
+    if (['order', 'story', 'gallery', 'contact', 'my-orders'].includes(p)) {
+      initialRoute = p;
+    }
+  }
+  navigateTo(initialRoute || 'home');
 });

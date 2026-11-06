@@ -9,9 +9,20 @@
   <meta name="theme-color" content="#fafafa" />
   <link rel="canonical" href="https://www.coffeeandcravings.shop/" />
 
+  <!-- Search Engine Crawling Directives -->
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="keywords" content="Coffee and Cravings, Coffee and Cravings Patna, cafe in Patna, best cafe in Patna, Mithapur cafe, artisan coffee Patna, frappes, shakes, burgers, pasta, waffles, table ordering cafe" />
+  <meta name="author" content="Coffee &amp; Cravings" />
+  <meta name="geo.region" content="IN-BR" />
+  <meta name="geo.placename" content="Patna" />
+  <meta name="geo.position" content="25.5941;85.1376" />
+  <meta name="ICBM" content="25.5941, 85.1376" />
+
   <!-- Open Graph / Facebook / WhatsApp -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://coffeeandcravings.shop/" />
+  <meta property="og:url" content="https://www.coffeeandcravings.shop/" />
   <meta property="og:title" content="Coffee &amp; Cravings — “Indulge in Creamy Perfection”" />
   <meta property="og:description" content="Artisan coffee, creamy pastas, handcrafted burgers, and contactless QR table ordering in Patna." />
   <meta property="og:image" content="https://www.coffeeandcravings.shop/favicon.png" />
@@ -179,7 +190,44 @@
 
   <!-- MAIN APP CONTAINER FOR VIEWS -->
   <main id="app-view-container">
-    <!-- Dynamic page views injected here: Home, Order, Story, Gallery, Contact -->
+    <!-- Static semantic fallback for search engine crawlers (hydrated dynamically by app.js) -->
+    <article class="seo-static-content">
+      <section class="hero-section" style="padding: 60px 20px; text-align: center; max-width: 900px; margin: 0 auto;">
+        <h1 style="font-family: var(--font-serif); font-size: 38px; line-height: 1.2; margin-bottom: 16px; color: #1a1a1a;">
+          Coffee &amp; Cravings — Patna's Artisan Cafe &amp; Kitchen
+        </h1>
+        <p style="font-size: 18px; color: #555; max-width: 720px; margin: 0 auto 24px; line-height: 1.6;">
+          Crafted with love, served with passion. Indulge in artisan espresso coffees, thick Belgian waffles, handcrafted gourmet burgers, and creamy Italian pastas in Mithapur, Patna.
+        </p>
+        <p style="font-size: 15px; color: #777;">
+          📍 Mithapur Farm Area, Patna, Bihar 800001 &bull; 📞 <a href="tel:6205677925">620-567-7925</a> &bull; ✉️ <a href="mailto:founder@coffeeandcravings.in">founder@coffeeandcravings.in</a>
+        </p>
+      </section>
+
+      <section style="max-width: 1000px; margin: 0 auto 40px; padding: 0 20px;">
+        <h2 style="font-family: var(--font-serif); font-size: 26px; text-align: center; margin-bottom: 20px;">
+          Artisan Menu &amp; Specialties
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; font-size: 14px; color: #444;">
+          <div style="background: #fdfbf7; padding: 16px; border-radius: 8px; border: 1px solid #f1e9dd;">
+            <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">☕ Specialty Coffee &amp; Frappes</h3>
+            <p>Cappuccino, Caffe Latte, Americano, Caffe Mocha, OG Cold Coffee, Hazelnut Frappe, Vietnamese Iced Latte.</p>
+          </div>
+          <div style="background: #fdfbf7; padding: 16px; border-radius: 8px; border: 1px solid #f1e9dd;">
+            <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">🍝 Creamy Pastas &amp; Pizzas</h3>
+            <p>Penne Alfredo, Penne Arrabiata, Spaghetti, Margherita Pizza, Farmhouse Cheese, Paneer Makhani Pizza.</p>
+          </div>
+          <div style="background: #fdfbf7; padding: 16px; border-radius: 8px; border: 1px solid #f1e9dd;">
+            <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">🍔 Burgers &amp; Crispy Sides</h3>
+            <p>Mexican Salsa Burger, Cheesy Cheese Burger, Club Sandwich, Salted French Fries, Peri Peri Fries.</p>
+          </div>
+          <div style="background: #fdfbf7; padding: 16px; border-radius: 8px; border: 1px solid #f1e9dd;">
+            <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">🧇 Belgian Waffles &amp; Shakes</h3>
+            <p>Kitkat Break Waffle, Triple Chocolate Therapy, Brownie Sizzler, Mango Shake, Belgian Hot Chocolate.</p>
+          </div>
+        </div>
+      </section>
+    </article>
   </main>
 
   <!-- GODADDY SITE FOOTER -->
