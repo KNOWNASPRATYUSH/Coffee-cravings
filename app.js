@@ -886,71 +886,71 @@ function getSuitedAddonsForProduct(product) {
   // Specifically map items that taste significantly better with sweet/dessert add-ons
   const map = {
     // Classic Shakes
-    'mango-shake': ['vanilla-ice-cream', 'oreo-crumbles', 'white-chocochips'],
-    'strawberry-shake': ['vanilla-ice-cream', 'white-chocochips', 'oreo-crumbles'],
-    'banana-shake': ['vanilla-ice-cream', 'black-chocochips', 'oreo-crumbles'],
-    'black-currant-shake': ['vanilla-ice-cream', 'white-chocochips'],
-    'oreo-slush': ['oreo-crumbles', 'chocolate-ice-cream', 'kitkat-bits'],
-    'choco-coco-shake': ['chocolate-ice-cream', 'black-chocochips', 'kitkat-bits'],
-    'butterscotch-ice-cream-shake': ['vanilla-ice-cream', 'white-chocochips', 'oreo-crumbles'],
-    'vanilla-ice-cream-shake': ['black-chocochips', 'oreo-crumbles', 'kitkat-bits'],
-    'kesar-pista-ice-cream-shake': ['vanilla-ice-cream', 'white-chocochips'],
+    'mango-shake': ['addon-vanilla-ice-cream', 'addon-oreo-crumbles', 'addon-white-chocochips'],
+    'strawberry-shake': ['addon-vanilla-ice-cream', 'addon-white-chocochips', 'addon-oreo-crumbles'],
+    'banana-shake': ['addon-vanilla-ice-cream', 'addon-black-chocochips', 'addon-oreo-crumbles'],
+    'black-currant-shake': ['addon-vanilla-ice-cream', 'addon-white-chocochips'],
+    'oreo-slush': ['addon-oreo-crumbles', 'addon-chocolate-ice-cream', 'addon-kitkat-bits'],
+    'choco-coco-shake': ['addon-chocolate-ice-cream', 'addon-black-chocochips', 'addon-kitkat-bits'],
+    'butterscotch-ice-cream-shake': ['addon-vanilla-ice-cream', 'addon-white-chocochips', 'addon-oreo-crumbles'],
+    'vanilla-ice-cream-shake': ['addon-black-chocochips', 'addon-oreo-crumbles', 'addon-kitkat-bits'],
+    'kesar-pista-ice-cream-shake': ['addon-vanilla-ice-cream', 'addon-white-chocochips'],
 
     // Premium Shakes
-    'caramel-oreo': ['oreo-crumbles', 'vanilla-ice-cream', 'black-chocochips'],
-    'caramel-chocochips': ['black-chocochips', 'white-chocochips', 'vanilla-ice-cream'],
-    'chocochip-shake': ['black-chocochips', 'chocolate-ice-cream', 'oreo-crumbles'],
-    'hazelnut-chocochips': ['black-chocochips', 'chocolate-ice-cream', 'kitkat-bits'],
-    'oreo-kitkat-mudshake': ['kitkat-bits', 'oreo-crumbles', 'chocolate-ice-cream'],
-    'real-fruit-shake': ['vanilla-ice-cream', 'white-chocochips'],
-    'butter-popcorn-shake': ['vanilla-ice-cream', 'white-chocochips'],
+    'caramel-oreo': ['addon-oreo-crumbles', 'addon-vanilla-ice-cream', 'addon-black-chocochips'],
+    'caramel-chocochips': ['addon-black-chocochips', 'addon-white-chocochips', 'addon-vanilla-ice-cream'],
+    'chocochip-shake': ['addon-black-chocochips', 'addon-chocolate-ice-cream', 'addon-oreo-crumbles'],
+    'hazelnut-chocochips': ['addon-black-chocochips', 'addon-chocolate-ice-cream', 'addon-kitkat-bits'],
+    'oreo-kitkat-mudshake': ['addon-kitkat-bits', 'addon-oreo-crumbles', 'addon-chocolate-ice-cream'],
+    'real-fruit-shake': ['addon-vanilla-ice-cream', 'addon-white-chocochips'],
+    'butter-popcorn-shake': ['addon-vanilla-ice-cream', 'addon-white-chocochips'],
 
     // Frappes & Cold Coffees
-    'og-cold-coffee': ['vanilla-ice-cream', 'chocolate-ice-cream', 'black-chocochips'],
-    'iced-latte': ['vanilla-ice-cream', 'black-chocochips'],
-    'vietnamese-iced-latte': ['vanilla-ice-cream', 'black-chocochips'],
-    'hazelnut-frappe': ['chocolate-ice-cream', 'black-chocochips', 'kitkat-bits'],
-    'french-vanilla-frappe': ['vanilla-ice-cream', 'white-chocochips', 'oreo-crumbles'],
-    'caramel-frappe': ['vanilla-ice-cream', 'white-chocochips', 'black-chocochips'],
-    'iced-mocha': ['chocolate-ice-cream', 'black-chocochips', 'oreo-crumbles'],
+    'og-cold-coffee': ['addon-vanilla-ice-cream', 'addon-chocolate-ice-cream', 'addon-black-chocochips'],
+    'iced-latte': ['addon-vanilla-ice-cream', 'addon-black-chocochips'],
+    'vietnamese-iced-latte': ['addon-vanilla-ice-cream', 'addon-black-chocochips'],
+    'hazelnut-frappe': ['addon-chocolate-ice-cream', 'addon-black-chocochips', 'addon-kitkat-bits'],
+    'french-vanilla-frappe': ['addon-vanilla-ice-cream', 'addon-white-chocochips', 'addon-oreo-crumbles'],
+    'caramel-frappe': ['addon-vanilla-ice-cream', 'addon-white-chocochips', 'addon-black-chocochips'],
+    'iced-mocha': ['addon-chocolate-ice-cream', 'addon-black-chocochips', 'addon-oreo-crumbles'],
 
     // Hot Chocolates
-    'belgian-hot-chocolate': ['black-chocochips', 'white-chocochips', 'vanilla-ice-cream'],
-    'hazelnut-hot-chocolate': ['black-chocochips', 'kitkat-bits', 'chocolate-ice-cream'],
-    'irish-cream-hot-chocolate': ['white-chocochips', 'vanilla-ice-cream'],
+    'belgian-hot-chocolate': ['addon-black-chocochips', 'addon-white-chocochips', 'addon-vanilla-ice-cream'],
+    'hazelnut-hot-chocolate': ['addon-black-chocochips', 'addon-kitkat-bits', 'addon-chocolate-ice-cream'],
+    'irish-cream-hot-chocolate': ['addon-white-chocochips', 'addon-vanilla-ice-cream'],
 
     // Belgian Waffles
-    'kitkat-break': ['kitkat-bits', 'vanilla-ice-cream', 'chocolate-ice-cream'],
-    'red-velvet-cream': ['white-chocochips', 'vanilla-ice-cream'],
-    'triple-chocolate-therapy': ['chocolate-ice-cream', 'black-chocochips', 'oreo-crumbles'],
-    'nutella-banana': ['vanilla-ice-cream', 'black-chocochips', 'kitkat-bits'],
+    'kitkat-break': ['addon-kitkat-bits', 'addon-vanilla-ice-cream', 'addon-chocolate-ice-cream'],
+    'red-velvet-cream': ['addon-white-chocochips', 'addon-vanilla-ice-cream'],
+    'triple-chocolate-therapy': ['addon-chocolate-ice-cream', 'addon-black-chocochips', 'addon-oreo-crumbles'],
+    'nutella-banana': ['addon-vanilla-ice-cream', 'addon-black-chocochips', 'addon-kitkat-bits'],
 
     // Desserts
-    'brownie-sizzler': ['vanilla-ice-cream', 'chocolate-ice-cream', 'black-chocochips'],
-    'belgian-banoffee-pancake': ['vanilla-ice-cream', 'black-chocochips', 'white-chocochips'],
-    'italian-tiramisu': ['black-chocochips', 'chocolate-ice-cream'],
-    'cheesecake': ['white-chocochips', 'vanilla-ice-cream'],
+    'brownie-sizzler': ['addon-vanilla-ice-cream', 'addon-chocolate-ice-cream', 'addon-black-chocochips'],
+    'belgian-banoffee-pancake': ['addon-vanilla-ice-cream', 'addon-black-chocochips', 'addon-white-chocochips'],
+    'italian-tiramisu': ['addon-black-chocochips', 'addon-chocolate-ice-cream'],
+    'cheesecake': ['addon-white-chocochips', 'addon-vanilla-ice-cream'],
 
     // Sweet Specialty Coffees
-    'caramel-cappuccino': ['vanilla-ice-cream', 'black-chocochips'],
-    'hazelnut-cappuccino': ['chocolate-ice-cream', 'black-chocochips'],
-    'caffe-mocha': ['black-chocochips', 'chocolate-ice-cream', 'vanilla-ice-cream']
+    'caramel-cappuccino': ['addon-vanilla-ice-cream', 'addon-black-chocochips'],
+    'hazelnut-cappuccino': ['addon-chocolate-ice-cream', 'addon-black-chocochips'],
+    'caffe-mocha': ['addon-black-chocochips', 'addon-chocolate-ice-cream', 'addon-vanilla-ice-cream']
   };
 
   if (map[product.id]) return map[product.id];
 
   // Category fallbacks for shakes, frappes, waffles, desserts
   if (product.category === 'classic-shakes' || product.category === 'premium-shakes') {
-    return ['vanilla-ice-cream', 'oreo-crumbles', 'black-chocochips'];
+    return ['addon-vanilla-ice-cream', 'addon-oreo-crumbles', 'addon-black-chocochips'];
   }
   if (product.category === 'frappes') {
-    return ['vanilla-ice-cream', 'chocolate-ice-cream'];
+    return ['addon-vanilla-ice-cream', 'addon-chocolate-ice-cream'];
   }
   if (product.category === 'hot-chocolate') {
-    return ['black-chocochips', 'white-chocochips'];
+    return ['addon-black-chocochips', 'addon-white-chocochips'];
   }
   if (product.category === 'waffles' || product.category === 'desserts') {
-    return ['vanilla-ice-cream', 'chocolate-ice-cream', 'oreo-crumbles'];
+    return ['addon-vanilla-ice-cream', 'addon-chocolate-ice-cream', 'addon-oreo-crumbles'];
   }
 
   // All savory categories (burgers, pasta, pizza, fries-sides, mocktails, budget-meals) return []
