@@ -45,3 +45,4 @@ module.exports = route(['POST'], async (req, res) => {
     message: 'Thank you! Your message has been received. Our team will get back to you shortly.'
   });
 });
+

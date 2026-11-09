@@ -89,13 +89,13 @@ async function sendEmailOtp(toEmail, otp) {
         })
       });
       if (res.ok) {
-        console.log(`[Email] OTP successfully sent to ${toEmail} via Resend`);
+        if (!IS_PROD) console.log(`[Email] OTP successfully sent to ${toEmail} via Resend`);
         return { sent: true };
       }
-      const errBody = await res.text();
-      console.warn(`[Email] Resend API error: ${errBody}`);
+      const errText = await res.text();
+      console.warn(`[Email] Resend API status ${res.status}${!IS_PROD ? ': ' + errText : ''}`);
     } catch (e) {
-      console.error('[Email] Resend error:', e);
+      console.error('[Email] Resend request failed');
     }
   }
 
@@ -169,10 +169,19 @@ async function handleOtp(req, res) {
 
   if (action === 'send') {
     const ip = clientIp(req);
-    const rlKey = 'rl:otpsend:' + ip;
-    const [sendCount] = await pipe([['INCR', rlKey], ['EXPIRE', rlKey, 600, 'NX']]);
+    const rlIpKey = 'rl:otpsend:' + ip;
+    const rlEmailKey = 'rl:otpsend:email:' + rawEmail;
+    const [sendCount, emailSendCount] = await pipe([
+      ['INCR', rlIpKey],
+      ['EXPIRE', rlIpKey, 600, 'NX'],
+      ['INCR', rlEmailKey],
+      ['EXPIRE', rlEmailKey, 600, 'NX']
+    ]);
     if (sendCount > 10) {
       throw new HttpError(429, 'Too many OTP requests. Please wait a few minutes.');
+    }
+    if (emailSendCount > 3) {
+      throw new HttpError(429, 'Too many codes requested for this email. Please check your inbox or wait a few minutes.');
     }
 
     const otp = crypto.randomInt(100000, 1000000).toString();
