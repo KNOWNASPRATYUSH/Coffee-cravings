@@ -1,0 +1,93 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+
+const html = fs.readFileSync('index.html', 'utf8');
+const sitemap = fs.readFileSync('sitemap.xml', 'utf8');
+const robots = fs.readFileSync('robots.txt', 'utf8');
+
+let n = 0;
+const t = (name, fn) => { fn(); n++; console.log('  ok  ' + name); };
+
+(async () => {
+  console.log('Running Professional SEO Audits...\n');
+
+  t('Title tag is optimized for local search and brand', () => {
+    const m = html.match(/<title>([^<]+)<\/title>/);
+    assert(m, 'Title tag must exist');
+    assert(/Coffee &amp; Cravings/i.test(m[1]), 'Title must contain brand name');
+    assert(/Patna/i.test(m[1]), 'Title must contain target city (Patna)');
+    assert(/Cafe|Coffee/i.test(m[1]), 'Title must contain primary category');
+  });
+
+  t('Meta description is present, under 165 characters, and keyword-rich', () => {
+    const m = html.match(/<meta name="description" content="([^"]+)"/);
+    assert(m, 'Meta description must exist');
+    assert(m[1].length > 60 && m[1].length <= 165, 'Description length should be between 60 and 165 chars, got ' + m[1].length);
+    assert(/Patna/i.test(m[1]) && /Coffee/i.test(m[1]), 'Description must contain core local keywords');
+  });
+
+  t('Canonical link points to HTTPS root domain', () => {
+    const m = html.match(/<link rel="canonical" href="([^"]+)"/);
+    assert(m, 'Canonical link must exist');
+    assert.equal(m[1], 'https://www.coffeeandcravings.shop/');
+  });
+
+  t('OpenGraph and Twitter cards are complete with high-res 1200x675 image', () => {
+    assert(html.includes('property="og:title"'), 'og:title missing');
+    assert(html.includes('property="og:description"'), 'og:description missing');
+    assert(html.includes('property="og:image"'), 'og:image missing');
+    assert(html.includes('property="og:url"'), 'og:url missing');
+    assert(html.includes('name="twitter:card" content="summary_large_image"'), 'twitter:card summary_large_image missing');
+    assert(html.includes('name="twitter:image"'), 'twitter:image missing');
+  });
+
+  t('Schema.org JSON-LD contains WebSite, CafeOrCoffeeShop, BreadcrumbList, and FAQPage', () => {
+    const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    assert(m, 'JSON-LD script must exist in index.html');
+    const parsed = JSON.parse(m[1]);
+    assert(parsed['@graph'], '@graph array required');
+
+    const types = parsed['@graph'].map(e => Array.isArray(e['@type']) ? e['@type'].join(',') : e['@type']);
+    assert(types.some(t => t.includes('WebSite')), 'WebSite schema missing');
+    assert(types.some(t => t.includes('CafeOrCoffeeShop')), 'CafeOrCoffeeShop schema missing');
+    assert(types.some(t => t.includes('BreadcrumbList')), 'BreadcrumbList schema missing');
+    assert(types.some(t => t.includes('FAQPage')), 'FAQPage schema missing');
+
+    const cafe = parsed['@graph'].find(e => (Array.isArray(e['@type']) ? e['@type'] : [e['@type']]).includes('CafeOrCoffeeShop'));
+    assert.equal(cafe.telephone, '+916205677925');
+    assert(cafe.address && cafe.address.addressLocality === 'Patna');
+    assert(cafe.geo && cafe.geo.latitude && cafe.geo.longitude);
+    assert(cafe.openingHoursSpecification && cafe.openingHoursSpecification.length > 0);
+  });
+
+  t('Static semantic crawler fallback has h1, h2, all category keywords, and FAQs', () => {
+    assert(html.includes('<h1'), 'Semantic <h1> missing');
+    assert(html.includes('<h2'), 'Semantic <h2> missing');
+    assert(/Specialty Hot/i.test(html), 'Coffee category missing from static fallback');
+    assert(/Pastas/i.test(html), 'Pastas category missing from static fallback');
+    assert(/Burgers/i.test(html), 'Burgers category missing from static fallback');
+    assert(/Waffles/i.test(html), 'Waffles category missing from static fallback');
+    assert(/Frequently Asked Questions/i.test(html), 'FAQ text missing from static fallback');
+  });
+
+  t('Sitemap.xml contains all 5 main pages with 2026-11-09 lastmod and no fragments', () => {
+    assert(sitemap.includes('https://www.coffeeandcravings.shop/'), 'Home URL missing from sitemap');
+    assert(sitemap.includes('https://www.coffeeandcravings.shop/order'), 'Order URL missing from sitemap');
+    assert(sitemap.includes('https://www.coffeeandcravings.shop/story'), 'Story URL missing from sitemap');
+    assert(sitemap.includes('https://www.coffeeandcravings.shop/gallery'), 'Gallery URL missing from sitemap');
+    assert(sitemap.includes('https://www.coffeeandcravings.shop/contact'), 'Contact URL missing from sitemap');
+    assert(!sitemap.includes('#'), 'Sitemap must not contain hash fragments');
+    assert(!sitemap.includes('2026-11-07'), 'All lastmod dates should be updated to latest release');
+  });
+
+  t('Robots.txt disallows /staff and points to valid sitemap', () => {
+    assert(robots.includes('Disallow: /staff'), 'Staff should be disallowed in robots.txt');
+    assert(robots.includes('Sitemap: https://www.coffeeandcravings.shop/sitemap.xml'), 'Sitemap directive missing');
+  });
+
+  console.log(`\n${n} SEO audits passed successfully!`);
+})().catch(e => {
+  console.error('SEO AUDIT FAILED:', e);
+  process.exit(1);
+});

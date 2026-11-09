@@ -189,6 +189,38 @@ function navigateTo(viewName) {
   const appContainer = document.getElementById('app-view-container');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
+  // Update Dynamic SEO title & meta description per view
+  const seoMeta = {
+    'home': {
+      title: 'Coffee & Cravings — Best Cafe & Artisan Coffee in Patna | Mithapur',
+      desc: 'Visit Coffee & Cravings in Mithapur, Patna. Indulge in artisan coffee, creamy Alfredo pasta, gourmet burgers, waffles, and contactless QR table ordering.'
+    },
+    'order': {
+      title: 'Artisan Cafe Menu & Online Ordering — Coffee & Cravings Patna',
+      desc: 'Explore our complete 80-item cafe menu in Patna. Order artisan coffees, frappes, Alfredo pasta, burgers, pizzas, and desserts with instant table delivery.'
+    },
+    'story': {
+      title: 'Our Story & Culinary Passion — Coffee & Cravings Patna',
+      desc: 'Read the story of Coffee & Cravings in Patna. Born from a passion for handcrafted artisan coffee, creamy Italian recipes, and warm cafe ambience.'
+    },
+    'gallery': {
+      title: 'Cafe Ambience, Coffee & Food Gallery — Coffee & Cravings Patna',
+      desc: 'Take a virtual tour of Coffee & Cravings in Mithapur, Patna. Browse photos of our cozy cafe interior, artisan coffee creations, and signature dishes.'
+    },
+    'contact': {
+      title: 'Visit Us in Mithapur, Patna — Contact & Hours | Coffee & Cravings',
+      desc: 'Find Coffee & Cravings in Mithapur Farm Area, Patna. Check our opening hours (10:30 AM - 10:00 PM), phone number (620-567-7925), and directions on Google Maps.'
+    },
+    'my-orders': {
+      title: 'My Orders & Digital Receipts — Coffee & Cravings',
+      desc: 'Track your live kitchen order status and view all your past digital dining receipts with Coffee & Cravings.'
+    }
+  };
+  const meta = seoMeta[viewName] || seoMeta['home'];
+  document.title = meta.title;
+  const descTag = document.querySelector('meta[name="description"]');
+  if (descTag) descTag.setAttribute('content', meta.desc);
+
   switch (viewName) {
     case 'my-orders':
       appContainer.innerHTML = renderMyOrdersPage();
