@@ -93,5 +93,13 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
     assert.equal((await call(session, { method: 'POST', body: 'pin=654321', ct: 'text/plain' })).code, 415);
   });
   await t('logout clears cookie', async () => { const r = await call(session, { method: 'DELETE' }); assert(/Max-Age=0/.test(r.headers['Set-Cookie'])); });
+  await t('security headers present on API routes', async () => {
+    const r = await call(session, { method: 'DELETE' });
+    assert.equal(r.headers['X-Content-Type-Options'], 'nosniff');
+    assert.equal(r.headers['X-Frame-Options'], 'DENY');
+    assert.equal(r.headers['Pragma'], 'no-cache');
+    assert.equal(r.headers['Expires'], '0');
+    assert(r.headers['Cache-Control'].includes('no-store'));
+  });
   console.log(`\n${n} checks passed`);
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

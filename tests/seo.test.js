@@ -86,8 +86,26 @@ const t = (name, fn) => { fn(); n++; console.log('  ok  ' + name); };
     assert(robots.includes('Sitemap: https://www.coffeeandcravings.shop/sitemap.xml'), 'Sitemap directive missing');
   });
 
+  t('vercel.json enforces complete HTTP security headers and CSP', () => {
+    const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
+    assert(vercel.headers && vercel.headers.length >= 3, 'Security headers rules required in vercel.json');
+    const globalRule = vercel.headers.find(h => h.source === '/(.*)');
+    assert(globalRule, 'Global headers rule /(.*) must exist');
+    const keys = globalRule.headers.map(h => h.key);
+    assert(keys.includes('Content-Security-Policy'), 'CSP missing');
+    assert(keys.includes('X-Frame-Options'), 'X-Frame-Options missing');
+    assert(keys.includes('X-Content-Type-Options'), 'X-Content-Type-Options missing');
+    assert(keys.includes('X-XSS-Protection'), 'X-XSS-Protection missing');
+    assert(keys.includes('Permissions-Policy'), 'Permissions-Policy missing');
+    assert(keys.includes('Referrer-Policy'), 'Referrer-Policy missing');
+    assert(keys.includes('Cross-Origin-Opener-Policy'), 'COOP missing');
+    assert(keys.includes('Cross-Origin-Resource-Policy'), 'CORP missing');
+    assert(keys.includes('Cache-Control'), 'Cache-Control missing');
+  });
+
   console.log(`\n${n} SEO audits passed successfully!`);
 })().catch(e => {
   console.error('SEO AUDIT FAILED:', e);
   process.exit(1);
 });
+
