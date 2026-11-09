@@ -1583,11 +1583,11 @@ function openPolicyModal(type) {
   if (!modal || !title || !body) return;
 
   if (type === 'privacy') {
-    title.innerText = 'Privacy Notice & DPDP Compliance';
+    title.innerText = 'Privacy Policy';
     body.innerHTML = `
-      <p style="font-size:12px; color:#6b7280; margin-bottom:12px;"><strong>Last Updated: May 2026</strong> · Digital Personal Data Protection Act, 2023 (DPDP Act) Compliant</p>
+      <p style="font-size:12px; color:#6b7280; margin-bottom:12px;"><strong>Last Updated: May 2026</strong></p>
       
-      <p class="mt-2">Coffee &amp; Cravings ("we", "us", "our") operates as a <strong>Data Fiduciary</strong> under India's <strong>Digital Personal Data Protection Act, 2023 ('DPDP Act')</strong>. We respect your privacy and are committed to processing your personal data lawfully, transparently, and securely.</p>
+      <p class="mt-2">Coffee &amp; Cravings ("we", "us", "our") respects your privacy and is committed to processing your personal data lawfully, transparently, and securely.</p>
 
       <div style="margin-top:14px;">
         <h4 style="font-size:14px; font-weight:700; color:#1f2937; margin-bottom:4px;">1. Personal Data We Collect</h4>
@@ -1601,7 +1601,7 @@ function openPolicyModal(type) {
       </div>
 
       <div style="margin-top:14px;">
-        <h4 style="font-size:14px; font-weight:700; color:#1f2937; margin-bottom:4px;">2. Purpose of Processing (Section 5)</h4>
+        <h4 style="font-size:14px; font-weight:700; color:#1f2937; margin-bottom:4px;">2. Purpose of Processing</h4>
         <p style="font-size:13px; line-height:1.5; color:#4b5563;">Your personal data is processed solely for specific, legitimate dining purposes:</p>
         <ul style="font-size:13px; line-height:1.6; color:#4b5563; padding-left:18px; margin-top:4px;">
           <li>Preparing and kitchen-dispatching your handcrafted orders accurately to your table or counter.</li>
@@ -1614,19 +1614,18 @@ function openPolicyModal(type) {
       </div>
 
       <div style="margin-top:14px;">
-        <h4 style="font-size:14px; font-weight:700; color:#1f2937; margin-bottom:4px;">3. Your Statutory Rights as a Data Principal (Sections 11–14)</h4>
-        <p style="font-size:13px; line-height:1.5; color:#4b5563;">Under the DPDP Act, 2023, you have full ownership and control over your personal data:</p>
+        <h4 style="font-size:14px; font-weight:700; color:#1f2937; margin-bottom:4px;">3. Your Privacy Rights</h4>
+        <p style="font-size:13px; line-height:1.5; color:#4b5563;">You have full ownership and control over your personal data:</p>
         <ul style="font-size:13px; line-height:1.6; color:#4b5563; padding-left:18px; margin-top:4px;">
           <li><strong>Right to Access:</strong> View your active receipts, profile, and lifetime order history anytime under "My Orders".</li>
-          <li><strong>Right to Correction &amp; Updating:</strong> Correct inaccurate information by signing in or requesting an update.</li>
-          <li><strong>Right to Erasure ("Right to be Forgotten"):</strong> Permanently delete your account, contact profile, and saved order records at any time directly through your account drawer using the <em>"Delete Account &amp; Order History"</em> button, or by emailing our Grievance Officer.</li>
+          <li><strong>Right to Correction:</strong> Update inaccurate information by signing in or requesting an update.</li>
+          <li><strong>Right to Erasure:</strong> Permanently delete your account, contact profile, and saved order records at any time directly through your account drawer using the <em>"Delete Account &amp; Order History"</em> button, or by emailing our Grievance Officer.</li>
           <li><strong>Right to Grievance Redressal:</strong> Submit any inquiry, concern, or complaint regarding your data privacy directly to our designated Grievance Officer.</li>
-          <li><strong>Right to Nominate:</strong> You may designate a legal representative to exercise your data rights in the event of death or incapacity.</li>
         </ul>
       </div>
 
       <div style="margin-top:14px;">
-        <h4 style="font-size:14px; font-weight:700; color:#1f2937; margin-bottom:4px;">4. Data Retention &amp; Security Safeguards (Section 8)</h4>
+        <h4 style="font-size:14px; font-weight:700; color:#1f2937; margin-bottom:4px;">4. Data Security &amp; Retention</h4>
         <p style="font-size:13px; line-height:1.5; color:#4b5563;">We implement reasonable technical and organizational safeguards:</p>
         <ul style="font-size:13px; line-height:1.6; color:#4b5563; padding-left:18px; margin-top:4px;">
           <li>Active kitchen queue tickets automatically expire and are purged after 24 hours.</li>
@@ -1636,16 +1635,16 @@ function openPolicyModal(type) {
       </div>
 
       <div style="margin-top:14px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:12px;">
-        <h4 style="font-size:14px; font-weight:700; color:#1f2937; margin-bottom:4px;">5. Grievance Redressal Officer (Section 13)</h4>
-        <p style="font-size:12px; line-height:1.5; color:#4b5563; margin:0;">In accordance with the DPDP Act, if you have questions, require data access/deletion, or have a grievance, contact our designated officer:</p>
+        <h4 style="font-size:14px; font-weight:700; color:#1f2937; margin-bottom:4px;">5. Grievance Redressal Officer</h4>
+        <p style="font-size:12px; line-height:1.5; color:#4b5563; margin:0;">If you have questions, require data access/deletion, or have a grievance, contact our designated officer:</p>
         <div style="font-size:12px; color:#1f2937; margin-top:6px; line-height:1.5;">
-          <strong>Designation:</strong> Data Protection &amp; Grievance Redressal Officer<br/>
+          <strong>Designation:</strong> Grievance Redressal Officer<br/>
           <strong>Entity:</strong> Coffee &amp; Cravings<br/>
           <strong>Physical Address:</strong> H4RM+WXF, Mithapur Farm Area, Mithapur, Patna, Bihar 800001, India<br/>
           <strong>Direct Email:</strong> <a href="mailto:founder@coffeeandcravings.in" style="color:#2563eb;">founder@coffeeandcravings.in</a><br/>
           <strong>Phone:</strong> +91 620-567-7925
         </div>
-        <p style="font-size:11px; color:#6b7280; margin-top:6px; margin-bottom:0;">Grievances will be acknowledged promptly and resolved within 30 days as prescribed by law. If unsatisfied, you have the right to approach the Data Protection Board of India (DPBI).</p>
+        <p style="font-size:11px; color:#6b7280; margin-top:6px; margin-bottom:0;">All privacy inquiries will be acknowledged promptly and resolved within 30 days.</p>
       </div>
     `;
   } else {
@@ -2261,7 +2260,7 @@ async function logoutCustomer() {
 
 
 async function deleteCustomerAccount() {
-  if (!confirm('Under India’s DPDP Act (Right to Erasure), this will permanently erase your profile and saved order receipts from our database. Are you sure you wish to proceed?')) return;
+  if (!confirm('Are you sure you want to delete your account and all associated order history? This cannot be undone.')) return;
   try {
     const r = await fetch('/api/customer/session?deleteData=true', { method: 'DELETE' });
     if (r.ok) {
