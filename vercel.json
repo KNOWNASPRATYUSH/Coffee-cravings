@@ -1,11 +1,17 @@
 {
   "rewrites": [
     { "source": "/staff", "destination": "/staff/index.html" },
+    { "source": "/staff/", "destination": "/staff/index.html" },
     { "source": "/order", "destination": "/index.html" },
+    { "source": "/order/", "destination": "/index.html" },
     { "source": "/story", "destination": "/index.html" },
+    { "source": "/story/", "destination": "/index.html" },
     { "source": "/gallery", "destination": "/index.html" },
+    { "source": "/gallery/", "destination": "/index.html" },
     { "source": "/contact", "destination": "/index.html" },
-    { "source": "/my-orders", "destination": "/index.html" }
+    { "source": "/contact/", "destination": "/index.html" },
+    { "source": "/my-orders", "destination": "/index.html" },
+    { "source": "/my-orders/", "destination": "/index.html" }
   ],
   "headers": [
     { "source": "/(.*)", "headers": [
