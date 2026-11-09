@@ -420,7 +420,11 @@
           </div>
         </div>
 
-        <button class="btn-godaddy-dark full-width place-order-btn mt-3" id="confirm-order-btn" onclick="submitFinalOrder()">
+        <div style="font-size:11px; color:#6b7280; text-align:center; margin-top:12px; line-height:1.4;">
+          🔒 Your details are used solely to fulfill your order and generate your digital bill per our <a href="#privacy" onclick="openPolicyModal('privacy'); return false;" style="color:#2563eb; text-decoration:underline;">Privacy Policy (DPDP Act)</a>.
+        </div>
+
+        <button class="btn-godaddy-dark full-width place-order-btn mt-2" id="confirm-order-btn" onclick="submitFinalOrder()">
           Confirm &amp; Place Order
         </button>
       </div>
@@ -600,7 +604,7 @@
             <button class="auth-view-orders-btn" onclick="closeCustomerAuthModal(); navigateTo('my-orders');" type="button">📦 View My Orders</button>
             <button class="auth-logout-btn" onclick="logoutCustomer()" type="button">Sign Out</button>
             <div style="text-align:center; margin-top:8px;">
-              <button onclick="deleteCustomerAccount()" type="button" style="background:none; border:none; color:#ef4444; font-size:12px; cursor:pointer; text-decoration:underline; padding:4px;">🗑️ Delete Account &amp; Order History</button>
+              <button onclick="deleteCustomerAccount()" type="button" style="background:none; border:none; color:#ef4444; font-size:12px; cursor:pointer; text-decoration:underline; padding:4px;">🗑️ Erase Account &amp; Order Data (DPDP Act)</button>
             </div>
           </div>
           <p style="font-size:11px; color:#6b7280; text-align:center; margin-top:14px; line-height:1.4;">🔒 <strong>Privacy Guarantee:</strong> We store your phone and order history exclusively for live order status alerts and digital receipts. We never sell or share your data.</p>
@@ -614,7 +618,7 @@
 
   <!-- APP JAVASCRIPT -->
   <script src="menu-data.js?v=2.3"></script>
-  <script src="app.js?v=2.4"></script>
+  <script src="app.js?v=2.5"></script>
 
   <!-- ANIMATED ORDER PLACED CELEBRATION POPUP -->
   <div id="order-placed-popup" class="order-placed-popup-overlay" style="display:none;" onclick="dismissOrderPlacedPopup()">
