@@ -2260,10 +2260,49 @@ function showToast(message, type = 'success') {
   }, 3200);
 }
 
-function handleContactSubmit(e) {
+async function handleContactSubmit(e) {
   e.preventDefault();
-  showToast('Thank you! Your message has been sent to founder@coffeeandcravings.in', 'success');
-  e.target.reset();
+  const form = e.target;
+  const btn = form.querySelector('button[type="submit"]');
+  const nameInput = form.querySelector('#contact-name') || form.querySelector('input[type="text"]');
+  const emailInput = form.querySelector('#contact-email') || form.querySelector('input[type="email"]');
+  const msgInput = form.querySelector('#contact-message') || form.querySelector('textarea');
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  const email = emailInput ? emailInput.value.trim() : '';
+  const message = msgInput ? msgInput.value.trim() : '';
+
+  if (!name || !email || !message) {
+    showToast('Please fill out all fields.', 'error');
+    return;
+  }
+
+  const origBtnText = btn ? btn.textContent : 'Send Message';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+  }
+
+  try {
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, message })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to send message. Please try again.');
+    }
+    showToast(data.message || 'Thank you! Your message has been received.', 'success');
+    form.reset();
+  } catch (err) {
+    showToast(err.message || 'Could not send message. Please try again.', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = origBtnText;
+    }
+  }
 }
 
 // =============================================================================

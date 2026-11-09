@@ -20,16 +20,17 @@ function memExec(c) {
     case 'GET': return mem.kv.has(k) ? mem.kv.get(k) : null;
     case 'MGET': return [k, ...a].map(key => mem.kv.has(key) ? mem.kv.get(key) : null);
     case 'SET': { if (a.includes('NX') && mem.kv.has(k)) return null; mem.kv.set(k, String(a[0])); return 'OK'; }
-    case 'DEL': mem.kv.delete(k); mem.h.delete(k); return 1;
+    case 'DEL': mem.kv.delete(k); mem.h.delete(k); mem.z.delete(k); return 1;
     case 'INCR': { const n = (parseInt(mem.kv.get(k), 10) || 0) + 1; mem.kv.set(k, String(n)); return n; }
     case 'EXPIRE': return 1;
-    case 'EXISTS': return (mem.kv.has(k) || mem.h.has(k)) ? 1 : 0;
+    case 'EXISTS': return (mem.kv.has(k) || mem.h.has(k) || mem.z.has(k)) ? 1 : 0;
     case 'HSET': { const o = mem.h.get(k) || {}; for (let i = 0; i < a.length; i += 2) o[a[i]] = String(a[i + 1]); mem.h.set(k, o); return 1; }
     case 'HGET': { const o = mem.h.get(k); return o && o[a[0]] !== undefined ? o[a[0]] : null; }
     case 'HDEL': { const o = mem.h.get(k); if (o) delete o[a[0]]; return 1; }
     case 'HINCRBY': { const o = mem.h.get(k) || {}; o[a[0]] = String((parseInt(o[a[0]], 10) || 0) + Number(a[1])); mem.h.set(k, o); return Number(o[a[0]]); }
     case 'HGETALL': { const o = mem.h.get(k); return o ? Object.entries(o).flat() : []; }
     case 'ZADD': { const z = mem.z.get(k) || new Map(); z.set(a[1], Number(a[0])); mem.z.set(k, z); return 1; }
+    case 'ZREM': { const z = mem.z.get(k); if (z) { for (const m of a) z.delete(m); } return 1; }
     case 'ZREVRANGE': {
       const z = mem.z.get(k) || new Map();
       const sorted = [...z.entries()].sort((x, y) => y[1] - x[1]).map(e => e[0]);

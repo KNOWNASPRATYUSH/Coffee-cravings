@@ -613,3 +613,90 @@ async function handleUpdatePins(ev) {
     btn.innerText = 'Save New PINs';
   }
 }
+
+/* ---------------- Inquiries / Messages ---------------- */
+let adminInquiries = [];
+
+async function renderInquiries(view) {
+  view = view || document.getElementById('staff-view');
+  view.innerHTML = `<p class="story-text">Loading inquiries…</p>`;
+  try {
+    const res = await api('/api/owner/messages');
+    adminInquiries = res.messages || [];
+    drawInquiries(view);
+  } catch (e) {
+    if (role) view.innerHTML = `<p style="color:#b91c1c;">${esc(e.message)}</p>`;
+  }
+}
+
+function drawInquiries(view) {
+  view = view || document.getElementById('staff-view');
+  const count = adminInquiries.length;
+  view.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+      <div>
+        <h3 class="section-heading-serif" style="font-size:22px; margin:0 0 4px;">Customer Inquiries (${count})</h3>
+        <p style="font-size:13px; color:#666; margin:0;">Questions and messages submitted via the website contact form.</p>
+      </div>
+      <button class="btn-godaddy-outline" style="${SMALL_BTN}" onclick="renderInquiries(document.getElementById('staff-view'))">↻ Refresh</button>
+    </div>
+    ${!count ? `
+      <div style="${CARD} text-align:center; padding:48px 20px; color:#6b7280;">
+        <div style="font-size:36px; margin-bottom:12px;">📬</div>
+        <div style="font-size:15px; font-weight:600; color:#374151; margin-bottom:4px;">No inquiries yet</div>
+        <div style="font-size:13px;">When customers submit a question or feedback on the website, it will appear here.</div>
+      </div>
+    ` : `
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        ${adminInquiries.map(m => {
+          let dateStr = m.createdAt;
+          try {
+            const d = new Date(m.createdAt);
+            dateStr = d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+          } catch (_) {}
+          return `
+            <div style="${CARD} box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+                <div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <b style="font-size:15px; color:#111827;">${esc(m.name)}</b>
+                    <span style="font-size:11px; background:#f3f4f6; color:#4b5563; padding:2px 8px; border-radius:12px;">Inquiry</span>
+                  </div>
+                  <div style="font-size:12px; color:#6b7280; margin-top:2px;">
+                    <a href="mailto:${esc(m.email)}" style="color:#2563eb; text-decoration:none;">${esc(m.email)}</a>
+                    <span style="margin:0 6px;">•</span>
+                    <span>${esc(dateStr)}</span>
+                  </div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <a href="mailto:${esc(m.email)}?subject=${encodeURIComponent('Re: Your Coffee & Cravings inquiry')}" class="btn-godaddy-outline" style="${SMALL_BTN}; text-decoration:none;">
+                    ✉️ Reply
+                  </a>
+                  <button class="btn-godaddy-outline" style="${SMALL_BTN}; color:#b91c1c; border-color:#fca5a5;" onclick="deleteInquiry('${esc(m.id)}')">
+                    Delete
+                  </button>
+                </div>
+              </div>
+              <div style="background:#f9fafb; border:1px solid #f3f4f6; border-radius:6px; padding:12px; font-size:14px; line-height:1.6; color:#1f2937; white-space:pre-wrap; word-break:break-word;">${esc(m.message)}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `}
+  `;
+}
+
+async function deleteInquiry(id) {
+  if (!confirm('Are you sure you want to delete this message?')) return;
+  try {
+    await api('/api/owner/messages', {
+      method: 'DELETE',
+      body: JSON.stringify({ id })
+    });
+    showToast('Inquiry deleted', 'success');
+    renderInquiries(document.getElementById('staff-view'));
+  } catch (e) {
+    showToast(e.message || 'Failed to delete inquiry', 'error');
+  }
+}
+

@@ -187,7 +187,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 function setTab(t) { currentTab = t; showTab(); }
 function renderNav() {
   const el = document.getElementById('staff-nav'); if (!el) return;
-  el.innerHTML = [['orders', 'Orders'], ['reports', 'Reports'], ['menu', 'Menu'], ['deals', 'Deals (BOGO)'], ['coupons', 'Coupons'], ['customers', 'Customers'], ['qr', 'QR Codes'], ['security', 'PINs & Security']].map(([k, l]) =>
+  el.innerHTML = [['orders', 'Orders'], ['reports', 'Reports'], ['menu', 'Menu'], ['deals', 'Deals (BOGO)'], ['coupons', 'Coupons'], ['customers', 'Customers'], ['inquiries', 'Inquiries'], ['qr', 'QR Codes'], ['security', 'PINs & Security']].map(([k, l]) =>
     `<button class="${currentTab === k ? 'btn-godaddy-dark' : 'btn-godaddy-outline'}" style="font-size:12px; padding:8px 16px;" onclick="setTab('${k}')">${l}</button>`).join('');
 }
 function showTab() {
@@ -200,6 +200,7 @@ function showTab() {
   else if (currentTab === 'deals') renderDeals(v);
   else if (currentTab === 'coupons') renderCoupons(v);
   else if (currentTab === 'customers') renderCustomers(v);
+  else if (currentTab === 'inquiries') renderInquiries(v);
   else if (currentTab === 'security') renderSecuritySettings(v);
   else { v.innerHTML = renderBaristaKdsPage(); renderKdsOrders(); }
 }

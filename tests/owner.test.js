@@ -1,7 +1,7 @@
 'use strict';
 process.env.SESSION_SECRET = 'x'.repeat(40); process.env.OWNER_PIN = '8044'; process.env.BARISTA_PIN = '0508';
 const assert = require('assert');
-const orders = require('../api/orders'), session = require('../api/staff/session'), staff = require('../api/staff/orders'), owner = require('../api/owner/[action]'), config = require('../api/config');
+const orders = require('../api/orders'), session = require('../api/staff/session'), staff = require('../api/staff/orders'), owner = require('../api/owner/[action]'), config = require('../api/config'), contact = require('../api/contact');
 const { issueCustomerToken } = require('../api/_lib');
 const custCookie = 'cc_customer=' + issueCustomerToken({ uid: 'cust_owner_test', phone: '9876543210', name: 'T' });
 
@@ -150,6 +150,53 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
     assert.equal(revertRes.code, 200);
     O = revertRes.headers['Set-Cookie'].split(';')[0];
     B = await login('0508', '2.0.0.2');
+  });
+
+  await t('customer contact form and owner inquiries inbox', async () => {
+    // 1. Validation checks on POST /api/contact
+    const badName = await call(contact, { method: 'POST', body: { name: 'A', email: 'test@example.com', message: 'Hello cafe' }, ip: '9.9.9.1' });
+    assert.equal(badName.code, 400);
+
+    const badEmail = await call(contact, { method: 'POST', body: { name: 'Pratyush', email: 'notanemail', message: 'Hello cafe' }, ip: '9.9.9.1' });
+    assert.equal(badEmail.code, 400);
+
+    const badMsg = await call(contact, { method: 'POST', body: { name: 'Pratyush', email: 'test@example.com', message: 'Hi' }, ip: '9.9.9.1' });
+    assert.equal(badMsg.code, 400);
+
+    // 2. Successful submission
+    const okRes = await call(contact, {
+      method: 'POST',
+      body: { name: 'Pratyush', email: 'pratyush@example.com', message: 'Do you have vegan almond croissants available?' },
+      ip: '9.9.9.2'
+    });
+    assert.equal(okRes.code, 201);
+    assert.equal(okRes.body.ok, true);
+
+    // 3. Unauthorized access to messages
+    assert.equal((await call(owner, { url: '/api/owner/messages' })).code, 401);
+    assert.equal((await call(owner, { url: '/api/owner/messages', cookie: B })).code, 403);
+
+    // 4. Owner fetches inquiries
+    const listRes = await api('messages');
+    assert.equal(listRes.code, 200);
+    assert(Array.isArray(listRes.body.messages));
+    const targetMsg = listRes.body.messages.find(m => m.email === 'pratyush@example.com');
+    assert(targetMsg, 'Expected to find submitted message in owner messages list');
+    assert.equal(targetMsg.name, 'Pratyush');
+    assert.equal(targetMsg.message, 'Do you have vegan almond croissants available?');
+    assert(targetMsg.createdAt);
+
+    // 5. Owner deletes inquiry
+    const delMissingId = await api('messages', { method: 'DELETE', body: {} });
+    assert.equal(delMissingId.code, 400);
+
+    const delRes = await api('messages', { method: 'DELETE', body: { id: targetMsg.id } });
+    assert.equal(delRes.code, 200);
+    assert.equal(delRes.body.ok, true);
+
+    // 6. Verified deleted
+    const afterDel = await api('messages');
+    assert(!afterDel.body.messages.some(m => m.id === targetMsg.id));
   });
 
   await t('sales report counts only PAID orders, once, with item + payment breakdown', async () => {

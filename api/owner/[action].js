@@ -158,6 +158,26 @@ async function securityApi(req, res) {
   throw new HttpError(405, 'Method not allowed');
 }
 
+async function messagesApi(req, res) {
+  if (req.method === 'GET') {
+    const ids = await cmd('ZREVRANGE', 'contact:messages', 0, 99);
+    if (!ids || !ids.length) return res.json({ messages: [] });
+    const raws = await pipe(ids.map(id => ['HGETALL', 'contact:msg:' + id]));
+    const messages = raws.map(toObj).filter(m => m && m.id);
+    return res.json({ messages });
+  }
+  if (req.method === 'DELETE') {
+    const id = String(req.body && req.body.id || '').trim();
+    if (!id) throw new HttpError(400, 'Message ID is required');
+    await pipe([
+      ['ZREM', 'contact:messages', id],
+      ['DEL', 'contact:msg:' + id]
+    ]);
+    return res.json({ ok: true, id });
+  }
+  throw new HttpError(405, 'Method not allowed');
+}
+
 module.exports = route(['GET', 'PUT', 'DELETE'], async (req, res) => {
   await requireStaff(req, ['owner']);
   const action = new URL(req.url, 'http://x').pathname.replace(/\/+$/, '').split('/').pop();
@@ -165,6 +185,7 @@ module.exports = route(['GET', 'PUT', 'DELETE'], async (req, res) => {
   if (action === 'coupons') return couponsApi(req, res);
   if (action === 'deals') return dealsApi(req, res);
   if (action === 'customers') return customersApi(req, res);
+  if (action === 'messages') return messagesApi(req, res);
   if (action === 'security') return securityApi(req, res);
   if (action === 'report' && req.method === 'GET') return reportApi(req, res);
   throw new HttpError(404, 'Not found');
