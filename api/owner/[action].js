@@ -180,7 +180,7 @@ async function messagesApi(req, res) {
 
 module.exports = route(['GET', 'PUT', 'DELETE'], async (req, res) => {
   await requireStaff(req, ['owner']);
-  const action = new URL(req.url, 'http://x').pathname.replace(/\/+$/, '').split('/').pop();
+  const action = (req.query && req.query.action) || new URL(req.url, 'http://x').pathname.replace(/\/+$/, '').split('/').pop();
   if (action === 'menu') return menuApi(req, res);
   if (action === 'coupons') return couponsApi(req, res);
   if (action === 'deals') return dealsApi(req, res);
