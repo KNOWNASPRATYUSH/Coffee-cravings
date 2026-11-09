@@ -6,7 +6,7 @@ const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.STORAGE_KV_REST_API_TOKEN || process.env.REDIS_TOKEN || process.env.KV_REST_TOKEN;
 const MAX_TABLE = 6;
 const SESSION_MS = 12 * 60 * 60 * 1000;
-const ORDER_TTL_S = 48 * 60 * 60;
+const ORDER_TTL_S = 24 * 60 * 60;
 
 class HttpError extends Error {
   constructor(status, message, extra) { super(message); this.status = status; this.extra = extra; }

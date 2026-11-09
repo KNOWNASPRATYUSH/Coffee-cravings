@@ -103,7 +103,7 @@ module.exports = route(['GET'], async (req, res) => {
     const liveRaw = toObj(liveResults[i]);
     const liveData = liveRaw.data ? parse(liveRaw.data) : null;
 
-    // Live status takes precedence while order is in active queue (<48h);
+    // Live status takes precedence while order is in active queue (<24h);
     // when expired from active queue, defaults to 'completed'
     const status = liveRaw.status || stored.status || 'completed';
     const paymentStatus = liveRaw.paymentStatus || (stored.isPaid ? 'PAID' : 'UNPAID');
