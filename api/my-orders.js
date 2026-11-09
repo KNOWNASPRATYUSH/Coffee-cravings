@@ -66,19 +66,27 @@ module.exports = route(['GET'], async (req, res) => {
           const liveRaw = toObj(activeRawList[i]);
           if (liveRaw && (liveRaw.data || liveRaw.status)) {
             const liveData = liveRaw.data ? parse(liveRaw.data) : null;
-            orderMap.set(id, {
-              id,
-              at: (liveData && liveData.createdAt) || new Date().toISOString(),
-              total: liveData ? liveData.total : 0,
-              subtotal: liveData ? liveData.subtotal : 0,
-              discount: liveData ? liveData.discount : 0,
-              tax: liveData ? liveData.tax : 0,
-              items: liveData ? liveData.items : [],
-              table: liveData ? liveData.table : 0,
-              isPaid: liveRaw.paymentStatus === 'PAID',
-              status: liveRaw.status || 'new',
-              paymentStatus: liveRaw.paymentStatus || 'UNPAID'
-            });
+            // CRITICAL IDOR PROTECTION:
+            // Only add recent active order if it authoritatively belongs to the authenticated user!
+            const isOwnerOfOrder = liveData && (
+              (loggedCust.uid && liveData.customerUid === loggedCust.uid) ||
+              (targetPhone && liveData.phone === targetPhone)
+            );
+            if (isOwnerOfOrder) {
+              orderMap.set(id, {
+                id,
+                at: liveData.createdAt || new Date().toISOString(),
+                total: liveData.total || 0,
+                subtotal: liveData.subtotal || 0,
+                discount: liveData.discount || 0,
+                tax: liveData.tax || 0,
+                items: liveData.items || [],
+                table: liveData.table || 0,
+                isPaid: liveRaw.paymentStatus === 'PAID',
+                status: liveRaw.status || 'new',
+                paymentStatus: liveRaw.paymentStatus || 'UNPAID'
+              });
+            }
           }
         }
       }

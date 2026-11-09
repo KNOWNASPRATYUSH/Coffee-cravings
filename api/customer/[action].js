@@ -2,7 +2,7 @@
 // Unified Customer Auth & Session API: /api/customer/session, /api/customer/otp, /api/customer/google
 const crypto = require('crypto');
 const {
-  HttpError, route, pipe, cmd, clientIp,
+  HttpError, route, pipe, cmd, clientIp, IS_PROD,
   customerOf, issueCustomerToken, setCustomerCookie, clearCustomerCookie
 } = require('../_lib');
 const { upsertCustomerUser, getCustomerUser, deleteCustomerData, cleanPhone, text } = require('../_shop');
@@ -150,8 +150,10 @@ async function sendEmailOtp(toEmail, otp) {
     }
   }
 
-  // Fallback: Securely log on server console
-  console.log(`[SECURITY] 6-digit OTP for ${toEmail}: ${otp}`);
+  // Fallback: only log OTP in local dev/testing, NEVER in production
+  if (!IS_PROD) {
+    console.log(`[DEV ONLY] 6-digit OTP for ${toEmail}: ${otp}`);
+  }
   return { sent: false };
 }
 

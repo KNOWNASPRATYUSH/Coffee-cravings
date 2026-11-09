@@ -266,5 +266,18 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     assert.equal(profileRes.body.user.orders, undefined);
   });
 
+  // 18. IDOR Prevention: querying another customer's order ID via ?recent= does not leak it
+  await t('SECURITY: IDOR via ?recent=CC-xxxx does not leak other customer orders', async () => {
+    // Priya is logged in with priyaCookie, tries to probe Rahul's order CC-1001
+    const r = await call(myOrders, {
+      method: 'GET', url: '/api/my-orders?recent=CC-1001',
+      cookie: priyaCookie, ip: '9.9.9.20'
+    });
+    assert.equal(r.code, 200);
+    assert(Array.isArray(r.body.orders));
+    const leaked = r.body.orders.find(o => o.id === 'CC-1001');
+    assert(!leaked, 'Must NOT leak Rahul order CC-1001 to Priya!');
+  });
+
   console.log(`\n${n} Customer Auth, Security & Lifetime History checks passed!`);
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

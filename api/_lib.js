@@ -67,11 +67,24 @@ function secret() {
   if (REDIS_TOKEN && REDIS_TOKEN.length >= 16) {
     return crypto.pbkdf2Sync(REDIS_TOKEN, 'cc-salt-2026', 100000, 32, 'sha256').toString('hex');
   }
+  if (IS_PROD) {
+    console.error('[SECURITY FATAL] SESSION_SECRET must be configured with >=32 characters in production.');
+    throw new HttpError(500, 'Server session security is not configured.');
+  }
+  // Safe default for local development / test harness only
   return 'c0ffee-cr4vings-pr0ducti0n-s3cur3-s3cr3t-k3y-2026';
 }
 function pins() {
   const owner = process.env.OWNER_PIN, barista = process.env.BARISTA_PIN;
   const ok = p => typeof p === 'string' && /^\d{4,12}$/.test(p);
+  if (IS_PROD) {
+    if (!ok(owner) || !ok(barista)) {
+      console.error('[SECURITY FATAL] OWNER_PIN and BARISTA_PIN must be set in production environment variables.');
+      throw new HttpError(500, 'Server authentication is not configured.');
+    }
+    return { owner, barista };
+  }
+  // Safe default for local development / test harness only
   return {
     owner: ok(owner) ? owner : '8044',
     barista: ok(barista) ? barista : '0508'
@@ -235,6 +248,6 @@ function route(methods, fn) {
   };
 }
 
-module.exports = { HttpError, cmd, pipe, toObj, pins, getPins, updateCachedPins, safeEq, issueToken, readToken, cookieOf, setSessionCookie, requireStaff,
+module.exports = { HttpError, IS_PROD, cmd, pipe, toObj, pins, getPins, updateCachedPins, safeEq, issueToken, readToken, cookieOf, setSessionCookie, requireStaff,
   CUSTOMER_SESSION_MS, issueCustomerToken, readCustomerToken, customerOf, setCustomerCookie, clearCustomerCookie,
   tableSig, tableSigOk, clientIp, route, MAX_TABLE, ORDER_TTL_S, SESSION_MS, _mem: mem };
