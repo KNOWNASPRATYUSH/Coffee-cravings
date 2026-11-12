@@ -110,7 +110,36 @@ const t = (name, fn) => { fn(); n++; console.log('  ok  ' + name); };
     assert(keys.includes('Cache-Control'), 'Cache-Control missing');
   });
 
-  console.log(`\n${n} SEO audits passed successfully!`);
+  t('GEO & AEO Schema.org contains aggregateRating, authentic reviews, amenities, and structured menu', () => {
+    const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    const parsed = JSON.parse(m[1]);
+    const cafe = parsed['@graph'].find(e => (Array.isArray(e['@type']) ? e['@type'] : [e['@type']]).includes('CafeOrCoffeeShop'));
+    assert(cafe.aggregateRating && cafe.aggregateRating.ratingValue === '4.8', 'aggregateRating with 4.8 score required for Google golden star snippets');
+    assert(Array.isArray(cafe.review) && cafe.review.length >= 2, 'Authentic local Patna reviews required in Schema.org graph');
+    assert(Array.isArray(cafe.amenityFeature) && cafe.amenityFeature.length >= 3, 'Amenity features (Wi-Fi, QR ordering) required in Schema');
+    assert(Array.isArray(cafe.areaServed) && cafe.areaServed.some(a => a.name === 'Patna'), 'Patna city and neighborhood areaServed required');
+    assert(cafe.hasMenu && typeof cafe.hasMenu === 'object' && Array.isArray(cafe.hasMenu.hasMenuSection), 'Structured Menu entity with sections required');
+  });
+
+  t('GEO: AI Search engine crawler permissions present in robots.txt and llms.txt exists', () => {
+    assert(robots.includes('User-agent: GPTBot'), 'GPTBot directive required for ChatGPT Search');
+    assert(robots.includes('User-agent: PerplexityBot'), 'PerplexityBot directive required for Perplexity AI');
+    assert(robots.includes('User-agent: Google-Extended'), 'Google-Extended directive required for Gemini AI');
+    assert(fs.existsSync('llms.txt'), 'llms.txt standard knowledge file must exist');
+    const llms = fs.readFileSync('llms.txt', 'utf8');
+    assert(llms.includes('Coffee & Cravings'), 'llms.txt must declare business name');
+    assert(llms.includes('Patna'), 'llms.txt must declare city location');
+    assert(llms.includes('Mithapur'), 'llms.txt must declare neighborhood');
+    assert(llms.includes('Penne Alfredo'), 'llms.txt must document top dishes');
+  });
+
+  t('Image SEO: Sitemap contains Google Image XML extension for visual search', () => {
+    assert(sitemap.includes('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'), 'Google image XML namespace required');
+    assert(sitemap.includes('<image:image>'), '<image:image> tags required for image SEO');
+    assert(sitemap.includes('<image:loc>'), '<image:loc> required for indexed dish photos');
+  });
+
+  console.log(`\n${n} SEO, GEO & AEO audits passed successfully!`);
 })().catch(e => {
   console.error('SEO AUDIT FAILED:', e);
   process.exit(1);

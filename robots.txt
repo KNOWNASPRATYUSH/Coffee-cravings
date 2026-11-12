@@ -4,4 +4,26 @@ Disallow: /staff
 Disallow: /staff/
 Disallow: /api/
 
+# Generative Engine Optimization (GEO) & AI Search Crawlers
+User-agent: GPTBot
+Allow: /
+Disallow: /staff
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /staff
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /staff
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
 Sitemap: https://www.coffeeandcravings.shop/sitemap.xml

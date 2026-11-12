@@ -9,6 +9,7 @@ const {
 const { upsertCustomerUser, getCustomerUser, deleteCustomerData, cleanPhone, text } = require('../_shop');
 
 const otpHmac = (email, code) => crypto.createHmac('sha256', process.env.SESSION_SECRET || 'cc-otp-pepper-2026').update(email.toLowerCase() + ':' + code).digest('hex');
+const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 
 // -----------------------------------------------------------------------------
 // 1. Session Handler: /api/customer/session
@@ -241,7 +242,7 @@ async function handleOtp(req, res) {
       ['DEL', attemptsKey]
     ]);
 
-    const uid = 'email_' + crypto.createHash('sha256').update(rawEmail).digest('hex').slice(0, 16);
+    const uid = 'email_' + sha(rawEmail).slice(0, 16);
     const displayName = text(b.name, 60) || rawEmail.split('@')[0];
 
     const user = await upsertCustomerUser({

@@ -1,16 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://www.coffeeandcravings.shop/</loc>
     <lastmod>2026-11-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://i.vimeocdn.com/video/1972773852-c462373ce16cfc72992424520d893639a8402099a84c3667279fddacc986d86f-d_1920x1080?r=pad</image:loc>
+      <image:title>Coffee &amp; Cravings — Best Cafe in Patna</image:title>
+      <image:caption>Artisan pasta, specialty coffee and cozy ambiance at Coffee &amp; Cravings Mithapur Patna</image:caption>
+    </image:image>
   </url>
   <url>
     <loc>https://www.coffeeandcravings.shop/order</loc>
     <lastmod>2026-11-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&amp;fit=crop&amp;w=700&amp;q=80</image:loc>
+      <image:title>Artisan Cappuccino Coffee in Patna</image:title>
+      <image:caption>Freshly brewed espresso and rich foam at Coffee &amp; Cravings Patna</image:caption>
+    </image:image>
   </url>
   <url>
     <loc>https://www.coffeeandcravings.shop/story</loc>
