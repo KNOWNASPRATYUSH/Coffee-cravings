@@ -1,5 +1,5 @@
 'use strict';
-process.env.SESSION_SECRET = 'x'.repeat(40); process.env.OWNER_PIN = '8044'; process.env.BARISTA_PIN = '0508';
+process.env.SESSION_SECRET = 'x'.repeat(40); process.env.OWNER_PIN = '804488'; process.env.BARISTA_PIN = '050805';
 const assert = require('assert');
 const orders = require('../api/orders'), session = require('../api/staff/session'), staff = require('../api/staff/orders'), owner = require('../api/owner/[action]'), config = require('../api/config'), contact = require('../api/contact');
 const { issueCustomerToken } = require('../api/_lib');
@@ -15,7 +15,7 @@ const order = (items, extra = {}) => call(orders, { method: 'POST', cookie: cust
 let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); };
 
 (async () => {
-  let O = await login('8044', '2.0.0.1'), B = await login('0508', '2.0.0.2');
+  let O = await login('804488', '2.0.0.1'), B = await login('050805', '2.0.0.2');
   const api = (path, o = {}) => call(owner, { url: '/api/owner/' + path, cookie: O, ...o });
 
   await t('only the owner can use the admin API', async () => {
@@ -104,20 +104,20 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
     assert.equal((await api('security', { method: 'PUT', body: { currentPin: '0000', newOwnerPin: '998877' } })).code, 401);
 
     // 4. PUT with invalid pin format (e.g. letters or too short) -> 400
-    assert.equal((await api('security', { method: 'PUT', body: { currentPin: '8044', newOwnerPin: 'abc' } })).code, 400);
-    assert.equal((await api('security', { method: 'PUT', body: { currentPin: '8044', newOwnerPin: '12' } })).code, 400);
+    assert.equal((await api('security', { method: 'PUT', body: { currentPin: '804488', newOwnerPin: 'abc' } })).code, 400);
+    assert.equal((await api('security', { method: 'PUT', body: { currentPin: '804488', newOwnerPin: '12' } })).code, 400);
 
     // 5. Valid update of both Owner and Barista PIN
     const updateRes = await api('security', {
       method: 'PUT',
-      body: { currentPin: '8044', newOwnerPin: '998877', newBaristaPin: '334455' }
+      body: { currentPin: '804488', newOwnerPin: '998877', newBaristaPin: '334455' }
     });
     assert.equal(updateRes.code, 200);
     assert.equal(updateRes.body.ok, true);
     assert(updateRes.headers['Set-Cookie']); // refreshed session cookie issued
 
-    // 6. Old Owner PIN "8044" is now rejected
-    const oldLogin = await call(session, { method: 'POST', body: { pin: '8044' }, ip: '2.0.0.9' });
+    // 6. Old Owner PIN "804488" is now rejected
+    const oldLogin = await call(session, { method: 'POST', body: { pin: '804488' }, ip: '2.0.0.9' });
     assert.equal(oldLogin.code, 401);
 
     // 7. New Owner PIN "998877" succeeds
@@ -131,8 +131,8 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
     const testOrders = await call(staff, { cookie: newOwnerCookie });
     assert.equal(testOrders.code, 200);
 
-    // 8. Old Barista PIN "0508" is now rejected
-    const oldBaristaLogin = await call(session, { method: 'POST', body: { pin: '0508' }, ip: '2.0.0.9' });
+    // 8. Old Barista PIN "050805" is now rejected
+    const oldBaristaLogin = await call(session, { method: 'POST', body: { pin: '050805' }, ip: '2.0.0.9' });
     assert.equal(oldBaristaLogin.code, 401);
 
     // 9. New Barista PIN "334455" succeeds
@@ -145,11 +145,11 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
       url: '/api/owner/security',
       method: 'PUT',
       cookie: newOwnerCookie,
-      body: { currentPin: '998877', newOwnerPin: '8044', newBaristaPin: '0508' }
+      body: { currentPin: '998877', newOwnerPin: '804488', newBaristaPin: '050805' }
     });
     assert.equal(revertRes.code, 200);
     O = revertRes.headers['Set-Cookie'].split(';')[0];
-    B = await login('0508', '2.0.0.2');
+    B = await login('050805', '2.0.0.2');
   });
 
   await t('customer contact form and owner inquiries inbox', async () => {

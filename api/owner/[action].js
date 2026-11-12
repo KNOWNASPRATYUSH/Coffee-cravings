@@ -116,7 +116,7 @@ async function securityApi(req, res) {
     if (!currentPin) throw new HttpError(400, 'Current Owner PIN is required.');
     if (!safeEq(currentPin, activePins.owner)) throw new HttpError(401, 'Current Owner PIN is incorrect.');
 
-    const pinRegex = /^\d{4,12}$/;
+    const pinRegex = /^\d{6,12}$/;
     const newOwnerPin = req.body.newOwnerPin !== undefined && req.body.newOwnerPin !== null && String(req.body.newOwnerPin).trim() !== ''
       ? String(req.body.newOwnerPin).trim() : null;
     const newBaristaPin = req.body.newBaristaPin !== undefined && req.body.newBaristaPin !== null && String(req.body.newBaristaPin).trim() !== ''
@@ -126,10 +126,10 @@ async function securityApi(req, res) {
       throw new HttpError(400, 'Please provide a new Owner PIN or Staff PIN.');
     }
     if (newOwnerPin && !pinRegex.test(newOwnerPin)) {
-      throw new HttpError(400, 'New Owner PIN must be 4 to 12 digits (numeric only).');
+      throw new HttpError(400, 'New Owner PIN must be 6 to 12 digits (numeric only).');
     }
     if (newBaristaPin && !pinRegex.test(newBaristaPin)) {
-      throw new HttpError(400, 'New Staff PIN must be 4 to 12 digits (numeric only).');
+      throw new HttpError(400, 'New Staff PIN must be 6 to 12 digits (numeric only).');
     }
 
     const updates = {};

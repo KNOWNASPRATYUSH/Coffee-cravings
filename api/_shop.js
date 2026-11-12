@@ -287,10 +287,13 @@ async function recordCustomerOrder(phone, name, orderId, totalP, isPaid, orderDe
       c.push(['HINCRBY', key, 'paidOrders', 1], ['HINCRBY', key, 'totalSpendP', totalP]);
     }
     if (customerUid) {
-      c.push(
-        ['SET', 'cust:phone2uid:' + p, customerUid],
-        ['SET', 'cust:uid2phone:' + customerUid, p]
-      );
+      const existingOwner = await cmd('GET', 'cust:phone2uid:' + p);
+      if (!existingOwner) {
+        c.push(
+          ['SET', 'cust:phone2uid:' + p, customerUid],
+          ['SET', 'cust:uid2phone:' + customerUid, p]
+        );
+      }
     }
   }
 
@@ -375,24 +378,29 @@ async function getCustomerOrders(identifier, extraPhone = '') {
   }
 
   for (const phone of phonesToCheck) {
-    const phoneMap = toObj(await cmd('HGETALL', 'cust:orders:' + phone));
-    Object.assign(rawMap, phoneMap);
-
     const linkedUid = await cmd('GET', 'cust:phone2uid:' + phone);
-    if (linkedUid && !uidsToCheck.has(linkedUid)) {
-      const uidOrders = toObj(await cmd('HGETALL', 'cust:orders:uid:' + linkedUid));
-      Object.assign(rawMap, uidOrders);
+    // Merge phone-keyed orders if unlinked, if queried by phone alone (e.g. owner lookup), or if owned by caller
+    if (!linkedUid || uidsToCheck.size === 0 || uidsToCheck.has(linkedUid)) {
+      const phoneMap = toObj(await cmd('HGETALL', 'cust:orders:' + phone));
+      Object.assign(rawMap, phoneMap);
+      if (linkedUid && uidsToCheck.size === 0) {
+        const uidOrders = toObj(await cmd('HGETALL', 'cust:orders:uid:' + linkedUid));
+        Object.assign(rawMap, uidOrders);
+      }
     }
   }
 
   if (uidsToCheck.size > 0 && phonesToCheck.size > 0) {
     const firstUid = [...uidsToCheck][0];
     const firstPhone = [...phonesToCheck][0];
-    await pipe([
-      ['SET', 'cust:phone2uid:' + firstPhone, firstUid],
-      ['SET', 'cust:uid2phone:' + firstUid, firstPhone],
-      ['HSET', 'cust:user:' + firstUid, 'phone', firstPhone]
-    ]);
+    const existingOwner = await cmd('GET', 'cust:phone2uid:' + firstPhone);
+    if (!existingOwner) {
+      await pipe([
+        ['SET', 'cust:phone2uid:' + firstPhone, firstUid],
+        ['SET', 'cust:uid2phone:' + firstUid, firstPhone],
+        ['HSET', 'cust:user:' + firstUid, 'phone', firstPhone]
+      ]);
+    }
   }
 
   return Object.values(rawMap).map(parse).filter(Boolean).sort((a, b) => new Date(b.at) - new Date(a.at));
@@ -443,6 +451,18 @@ async function upsertCustomerUser({ uid, email, phone, name, photoUrl }) {
     ['ZADD', 'customers:users', Date.now(), uid]
   ];
   if (cleanP && cleanP.length >= 6) {
+    const existingOwner = await cmd('GET', 'cust:phone2uid:' + cleanP);
+    if (existingOwner && existingOwner !== uid) {
+      const { HttpError } = require('./_lib');
+      throw new HttpError(409, 'This phone number is already linked to another account.');
+    }
+    const existingCust = toObj(await cmd('HGETALL', 'customer:' + cleanP));
+    if (!existingCust || !existingCust.phone) {
+      c.push(
+        ['HSET', 'customer:' + cleanP, 'phone', cleanP, 'name', cleanN, 'firstSeen', now, 'lastSeen', now, 'orders', '0', 'paidOrders', '0', 'totalSpendP', '0'],
+        ['ZADD', 'customers', Date.now(), cleanP]
+      );
+    }
     c.push(
       ['SET', 'cust:phone2uid:' + cleanP, uid],
       ['SET', 'cust:uid2phone:' + uid, cleanP]
@@ -495,19 +515,29 @@ async function deleteCustomerData(uid, rawPhone) {
   const p = cleanPhone(rawPhone);
   const ops = [];
   if (uid) {
+    const user = await getCustomerUser(uid);
+    if (user && user.email) {
+      ops.push(['DEL', 'cust:email2uid:' + user.email.toLowerCase()]);
+    }
     ops.push(
       ['DEL', 'cust:user:' + uid],
       ['DEL', 'cust:orders:uid:' + uid],
-      ['DEL', 'cust:uid2phone:' + uid]
+      ['DEL', 'cust:uid2phone:' + uid],
+      ['ZREM', 'customers:users', uid]
     );
   }
   if (p) {
-    ops.push(
-      ['DEL', 'customer:' + p],
-      ['DEL', 'cust:orders:' + p],
-      ['DEL', 'cust:phone2uid:' + p],
-      ['ZREM', 'customers', p]
-    );
+    // Only delete phone-keyed records if the caller is the verified owner of that phone!
+    const ownerUid = await cmd('GET', 'cust:phone2uid:' + p);
+    if (ownerUid === uid) {
+      ops.push(
+        ['DEL', 'customer:' + p],
+        ['DEL', 'cust:orders:' + p],
+        ['DEL', 'cust:phone2uid:' + p],
+        ['DEL', 'cust:coupons:' + p],
+        ['ZREM', 'customers', p]
+      );
+    }
   }
   if (ops.length) await pipe(ops);
   return { ok: true };

@@ -3,12 +3,12 @@
 const crypto = require('crypto');
 const lib = require('../_lib');
 const {
-  HttpError, route, pipe, cmd, clientIp,
+  HttpError, route, pipe, cmd, clientIp, safeEq,
   customerOf, issueCustomerToken, setCustomerCookie, clearCustomerCookie
 } = lib;
 const { upsertCustomerUser, getCustomerUser, deleteCustomerData, cleanPhone, text } = require('../_shop');
 
-const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
+const otpHmac = (email, code) => crypto.createHmac('sha256', process.env.SESSION_SECRET || 'cc-otp-pepper-2026').update(email.toLowerCase() + ':' + code).digest('hex');
 
 // -----------------------------------------------------------------------------
 // 1. Session Handler: /api/customer/session
@@ -191,7 +191,7 @@ async function handleOtp(req, res) {
     }
 
     const otp = crypto.randomInt(100000, 1000000).toString();
-    const otpHash = sha(otp);
+    const otpHash = otpHmac(rawEmail, otp);
 
     await pipe([
       ['SET', 'cust:otp:' + rawEmail, otpHash, 'EX', 300],
@@ -200,6 +200,10 @@ async function handleOtp(req, res) {
 
     const result = await sendEmailOtp(rawEmail, otp);
     const isTest = process.env.NODE_ENV === 'test' && !lib.IS_PROD;
+
+    if (!result.sent && !isTest) {
+      throw new HttpError(503, 'Email delivery is currently unavailable. Please sign in with Google or try again shortly.');
+    }
 
     // NEVER expose OTP to client in production or browser UI!
     return res.json({
@@ -228,7 +232,7 @@ async function handleOtp(req, res) {
       throw new HttpError(400, 'Code has expired or does not exist. Please request a new one.');
     }
 
-    if (sha(otp) !== storedHash) {
+    if (!safeEq(otpHmac(rawEmail, otp), storedHash)) {
       throw new HttpError(400, 'Invalid verification code. Please check your email.');
     }
 
@@ -237,7 +241,7 @@ async function handleOtp(req, res) {
       ['DEL', attemptsKey]
     ]);
 
-    const uid = 'email_' + sha(rawEmail).slice(0, 16);
+    const uid = 'email_' + crypto.createHash('sha256').update(rawEmail).digest('hex').slice(0, 16);
     const displayName = text(b.name, 60) || rawEmail.split('@')[0];
 
     const user = await upsertCustomerUser({

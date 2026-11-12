@@ -2,8 +2,8 @@
 const crypto = require('crypto');
 
 const isProd = () => !!process.env.VERCEL || process.env.NODE_ENV === 'production'; // any Vercel deployment (preview too) is treated as production: no dev fallbacks
-const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || process.env.STORAGE_KV_REST_API_URL || process.env.REDIS_URL || process.env.KV_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.STORAGE_KV_REST_API_TOKEN || process.env.REDIS_TOKEN || process.env.KV_REST_TOKEN;
+const getRedisUrl = () => process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || process.env.STORAGE_KV_REST_API_URL || process.env.REDIS_URL || process.env.KV_URL;
+const getRedisToken = () => process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.STORAGE_KV_REST_API_TOKEN || process.env.REDIS_TOKEN || process.env.KV_REST_TOKEN;
 const MAX_TABLE = 6;
 const SESSION_MS = 12 * 60 * 60 * 1000;
 const ORDER_TTL_S = 24 * 60 * 60;
@@ -44,7 +44,8 @@ function memExec(c) {
   }
 }
 function requireStore() {
-  if (!REDIS_URL || !REDIS_TOKEN) {
+  const url = getRedisUrl(), tok = getRedisToken();
+  if (!url || !tok) {
     return false;
   }
   return true;
@@ -57,8 +58,9 @@ async function pipe(cmds) {
     }
     return cmds.map(memExec);
   }
-  const r = await fetch(REDIS_URL.replace(/\/$/, '') + '/pipeline', {
-    method: 'POST', headers: { Authorization: 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(cmds)
+  const url = getRedisUrl(), tok = getRedisToken();
+  const r = await fetch(url.replace(/\/$/, '') + '/pipeline', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: JSON.stringify(cmds)
   });
   if (!r.ok) { console.error('Redis error', r.status); throw new HttpError(503, 'Service temporarily unavailable. Please try again.'); }
   const out = await r.json();
@@ -71,8 +73,9 @@ const toObj = (flat) => { const o = {}; for (let i = 0; i < (flat || []).length;
 function secret() {
   const s = process.env.SESSION_SECRET;
   if (s && s.length >= 32) return s;
-  if (REDIS_TOKEN && REDIS_TOKEN.length >= 16) {
-    return crypto.pbkdf2Sync(REDIS_TOKEN, 'cc-salt-2026', 100000, 32, 'sha256').toString('hex');
+  const tok = getRedisToken();
+  if (tok && tok.length >= 16) {
+    return crypto.pbkdf2Sync(tok, 'cc-salt-2026', 100000, 32, 'sha256').toString('hex');
   }
   if (isProd()) {
     console.error('[SECURITY FATAL] SESSION_SECRET must be configured with >=32 characters in production.');
@@ -83,7 +86,7 @@ function secret() {
 }
 function pins() {
   const owner = process.env.OWNER_PIN, barista = process.env.BARISTA_PIN;
-  const ok = p => typeof p === 'string' && /^\d{4,12}$/.test(p);
+  const ok = p => typeof p === 'string' && /^\d{6,12}$/.test(p);
   if (isProd()) {
     if (!ok(owner) || !ok(barista)) {
       console.error('[SECURITY FATAL] OWNER_PIN and BARISTA_PIN must be set in production environment variables.');

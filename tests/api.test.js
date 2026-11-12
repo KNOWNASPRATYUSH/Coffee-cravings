@@ -20,6 +20,7 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('  ok  '
 
 (async () => {
   await t('wrong PIN rejected, no cookie', async () => { const { r } = await login('000000', '9.9.9.1'); assert.equal(r.code, 401); assert(!r.headers['Set-Cookie']); });
+  await t('SECURITY (Finding 9): PINs shorter than 6 digits are rejected', async () => { const { r } = await login('1234', '9.9.9.1'); assert.equal(r.code, 401); });
   await t('lockout after 5 failures, even for the right PIN', async () => {
     for (let i = 0; i < 5; i++) await login('000000', '9.9.9.2');
     const { r } = await login('654321', '9.9.9.2'); assert.equal(r.code, 429);

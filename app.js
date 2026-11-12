@@ -2295,7 +2295,13 @@ async function logoutCustomer() {
   } catch (e) { }
   currentCustomerUser = null;
   customerPhone = '';
-  try { localStorage.removeItem('cc_cust_phone'); } catch (e) { }
+  customerName = '';
+  try {
+    localStorage.removeItem('cc_cust_phone');
+    localStorage.removeItem('cc_cust_name');
+    localStorage.removeItem('cc_recent_orders');
+    localStorage.removeItem('cc_cart');
+  } catch (e) { }
   closeCustomerAuthModal();
   updateCustomerHeaderUI();
   showToast('You have been signed out.', 'success');
@@ -2304,8 +2310,6 @@ async function logoutCustomer() {
   }
 }
 
-
-
 async function deleteCustomerAccount() {
   if (!confirm('Are you sure you want to delete your account and all associated order history? This cannot be undone.')) return;
   try {
@@ -2313,9 +2317,12 @@ async function deleteCustomerAccount() {
     if (r.ok) {
       currentCustomerUser = null;
       customerPhone = '';
+      customerName = '';
       try {
         localStorage.removeItem('cc_cust_phone');
+        localStorage.removeItem('cc_cust_name');
         localStorage.removeItem('cc_recent_orders');
+        localStorage.removeItem('cc_cart');
       } catch (e) { }
       closeCustomerAuthModal();
       updateCustomerHeaderUI();

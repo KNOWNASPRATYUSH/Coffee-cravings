@@ -391,5 +391,86 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     assert.equal(sanitizePhotoUrl('https://lh3.googleusercontent.com/a/ACg8ocI...'), 'https://lh3.googleusercontent.com/a/ACg8ocI...');
   });
 
+  // 24. Finding 1: Attacker cannot claim or overwrite another customer's phone binding
+  await t('SECURITY (Finding 1): Attacker cannot claim or overwrite another customer phone binding (409)', async () => {
+    // Legitimate customer binds phone A
+    const victim = await call(customer, {
+      method: 'POST', url: '/api/customer/session', ip: '9.9.9.27',
+      body: { uid: 'victim_uid_888', email: 'victim@test.com', phone: '9111122222', name: 'Victim Customer' }
+    });
+    assert.equal(victim.code, 200);
+
+    // Attacker logs in with their own account
+    const attacker = await call(customer, {
+      method: 'POST', url: '/api/customer/session', ip: '9.9.9.28',
+      body: { uid: 'attacker_uid_999', email: 'attacker@evil.com', name: 'Attacker' }
+    });
+    const attackerCookie = (attacker.headers['Set-Cookie'] || '').split(';')[0];
+
+    // Attacker tries to update their profile claiming the victim's phone number
+    const claimAttempt = await call(customer, {
+      method: 'POST', url: '/api/customer/session', cookie: attackerCookie, ip: '9.9.9.28',
+      body: { phone: '9111122222' }
+    });
+    assert.equal(claimAttempt.code, 409, 'Must reject hijacking an already-bound phone number with 409 Conflict');
+
+    // Attacker calling deleteCustomerData must NOT delete victim's phone-keyed orders
+    const deleteAttempt = await call(customer, {
+      method: 'DELETE', url: '/api/customer/session?deleteData=true', cookie: attackerCookie, ip: '9.9.9.28'
+    });
+    assert.equal(deleteAttempt.code, 200);
+
+    // Verify victim's phone profile remains intact
+    const victimPhoneRecord = await require('../api/_shop').lookupCustomer('9111122222');
+    assert.equal(victimPhoneRecord.exists, true, 'Victim profile must NOT be deleted by attacker');
+  });
+
+  // 25. Finding 10: OTP is stored as a peppered HMAC
+  await t('SECURITY (Finding 10): OTP hashes are peppered with server secret', async () => {
+    const r = await call(customer, {
+      method: 'POST', url: '/api/customer/otp', ip: '9.9.9.29',
+      body: { action: 'send', email: 'hmactest@gmail.com' }
+    });
+    assert.equal(r.code, 200);
+    const rawStored = await require('../api/_lib').cmd('GET', 'cust:otp:hmactest@gmail.com');
+    assert(rawStored && rawStored.length === 64, 'Must store 64-char hex HMAC');
+    // Verify an unkeyed sha256 does NOT match the stored HMAC
+    const unkeyedSha = require('crypto').createHash('sha256').update(String(r.body.devCode)).digest('hex');
+    assert.notEqual(rawStored, unkeyedSha, 'Must NOT be an unkeyed SHA-256');
+  });
+
+  // 26. Finding 15: Email OTP reports failure when email delivery fails in production
+  await t('SECURITY (Finding 15): Email OTP returns 503 if provider delivery fails in production', async () => {
+    const origVercel = process.env.VERCEL;
+    const origFetch = global.fetch;
+    try {
+      process.env.VERCEL = '1';
+      process.env.UPSTASH_REDIS_REST_URL = 'https://fake-upstash.io';
+      process.env.UPSTASH_REDIS_REST_TOKEN = 'fake-token-test-12345';
+      global.fetch = async (url, opts) => {
+        if (typeof url === 'string' && url.includes('/pipeline')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => [{ result: 1 }, { result: 1 }]
+          };
+        }
+        return { ok: false, status: 500 };
+      };
+
+      const r = await call(customer, {
+        method: 'POST', url: '/api/customer/otp', ip: '9.9.9.30',
+        body: { action: 'send', email: 'failtest@gmail.com' }
+      });
+      assert.equal(r.code, 503, 'Must return 503 error when email cannot be delivered');
+    } finally {
+      global.fetch = origFetch;
+      delete process.env.UPSTASH_REDIS_REST_URL;
+      delete process.env.UPSTASH_REDIS_REST_TOKEN;
+      if (origVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = origVercel;
+    }
+  });
+
   console.log(`\n${n} Customer Auth, Security & Lifetime History checks passed!`);
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

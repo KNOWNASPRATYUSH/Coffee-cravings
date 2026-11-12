@@ -45,4 +45,21 @@ async function markPaid(gatewayOrderId, paymentId, amountPaise) {
   }
   return ours;
 }
-module.exports = { enabled, keyId, env, hmacHex, sigOk, createGatewayOrder, markPaid };
+async function fetchGatewayPayment(paymentId) {
+  const { id, secret } = env();
+  if (!id || !secret || !paymentId) return null;
+  try {
+    const res = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
+      headers: {
+        Authorization: 'Basic ' + Buffer.from(`${id}:${secret}`).toString('base64')
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+module.exports = { enabled, keyId, env, hmacHex, sigOk, createGatewayOrder, markPaid, fetchGatewayPayment };
