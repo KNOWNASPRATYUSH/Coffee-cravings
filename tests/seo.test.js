@@ -72,18 +72,25 @@ const t = (name, fn) => { fn(); n++; console.log('  ok  ' + name); };
   });
 
   t('Sitemap.xml contains all 5 main pages with 2026-11-09 lastmod and no fragments', () => {
-    assert(sitemap.includes('https://www.coffeeandcravings.shop/'), 'Home URL missing from sitemap');
-    assert(sitemap.includes('https://www.coffeeandcravings.shop/order'), 'Order URL missing from sitemap');
-    assert(sitemap.includes('https://www.coffeeandcravings.shop/story'), 'Story URL missing from sitemap');
-    assert(sitemap.includes('https://www.coffeeandcravings.shop/gallery'), 'Gallery URL missing from sitemap');
-    assert(sitemap.includes('https://www.coffeeandcravings.shop/contact'), 'Contact URL missing from sitemap');
+    const locUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1].trim());
+    const expectedPages = [
+      'https://www.coffeeandcravings.shop/',
+      'https://www.coffeeandcravings.shop/order',
+      'https://www.coffeeandcravings.shop/story',
+      'https://www.coffeeandcravings.shop/gallery',
+      'https://www.coffeeandcravings.shop/contact'
+    ];
+    for (const page of expectedPages) {
+      assert(locUrls.some(u => u === page), 'Page missing from sitemap: ' + page);
+    }
     assert(!sitemap.includes('#'), 'Sitemap must not contain hash fragments');
     assert(!sitemap.includes('2026-11-07'), 'All lastmod dates should be updated to latest release');
   });
 
   t('Robots.txt disallows /staff and points to valid sitemap', () => {
-    assert(robots.includes('Disallow: /staff'), 'Staff should be disallowed in robots.txt');
-    assert(robots.includes('Sitemap: https://www.coffeeandcravings.shop/sitemap.xml'), 'Sitemap directive missing');
+    const lines = robots.split('\n').map(l => l.trim());
+    assert(lines.includes('Disallow: /staff'), 'Staff should be disallowed in robots.txt');
+    assert(lines.some(l => l === 'Sitemap: https://www.coffeeandcravings.shop/sitemap.xml'), 'Sitemap directive missing');
   });
 
   t('vercel.json enforces complete HTTP security headers and CSP', () => {

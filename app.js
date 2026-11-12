@@ -48,7 +48,7 @@ async function lookupCustomerInfo(phone) {
       renderCartCustomerState();
       return customerInfo;
     }
-  } catch (e) {}
+  } catch (e) { }
   return null;
 }
 
@@ -97,7 +97,7 @@ function initStorage() {
     customerPhone = localStorage.getItem('cc_cust_phone') || '';
     customerName = localStorage.getItem('cc_cust_name') || '';
     if (customerPhone) lookupCustomerInfo(customerPhone);
-  } catch (e) {}
+  } catch (e) { }
   try {
     const p = new URLSearchParams(window.location.search);
     const t = parseInt(p.get('table'), 10);
@@ -109,13 +109,13 @@ function initStorage() {
     }
     currentTable = parseInt(sessionStorage.getItem('cc_table'), 10) || 0;
     currentTableSig = sessionStorage.getItem('cc_table_sig') || '';
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function saveCart() {
   try {
     localStorage.setItem('cc_cart', JSON.stringify(cart));
-  } catch (e) {}
+  } catch (e) { }
   updateCartBadge();
   renderCartDrawer();
 }
@@ -124,7 +124,7 @@ function saveTable(tableNum) {
   currentTable = parseInt(tableNum, 10) || 0;
   try {
     localStorage.setItem('cc_table', currentTable);
-  } catch (e) {}
+  } catch (e) { }
   updateTablePill();
 }
 
@@ -161,7 +161,7 @@ function playChimeSound() {
     osc2.start(now + 0.15);
     osc1.stop(now + 0.6);
     osc2.stop(now + 0.6);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // =============================================================================
@@ -331,9 +331,9 @@ function renderHomePage() {
       </div>
       <div class="products-grid">
         ${featured.map(item => {
-          const itemDeal = (activeDeals || []).find(d => d.active !== false && d.buyItemId === item.id);
-          const dealBadge = itemDeal ? `<span class="product-badge" style="background:#7c2d12; color:#fff; top:8px; right:8px; font-weight:700;">🎁 Buy ${itemDeal.buyQty} Get ${itemDeal.freeQty} Free</span>` : '';
-          return `
+    const itemDeal = (activeDeals || []).find(d => d.active !== false && d.buyItemId === item.id);
+    const dealBadge = itemDeal ? `<span class="product-badge" style="background:#7c2d12; color:#fff; top:8px; right:8px; font-weight:700;">🎁 Buy ${itemDeal.buyQty} Get ${itemDeal.freeQty} Free</span>` : '';
+    return `
           <div class="product-card">
             <div class="product-img-box">
               <img src="${item.image}" alt="${item.name}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=700&q=80';" />
@@ -350,7 +350,8 @@ function renderHomePage() {
               </div>
             </div>
           </div>
-        `;}).join('')}
+        `;
+  }).join('')}
       </div>
       <div class="text-center mt-4" style="text-align:center;">
         <button class="btn-godaddy-dark" onclick="navigateTo('order')">View Full Menu (${MENU_ITEMS.length} Items)</button>
@@ -546,9 +547,9 @@ function renderOrderPage() {
               <button class="btn-godaddy-dark mt-2" onclick="setOrderCategoryFilter('all'); handleOrderSearchInput('');">Show All Items</button>
             </div>
           ` : filteredItems.map(item => {
-            const itemDeal = (activeDeals || []).find(d => d.active !== false && d.buyItemId === item.id);
-            const dealBadge = itemDeal ? `<span class="product-badge" style="background:#7c2d12; color:#fff; top:8px; right:8px; font-weight:700;">🎁 Buy ${itemDeal.buyQty} Get ${itemDeal.freeQty} Free</span>` : '';
-            return `
+    const itemDeal = (activeDeals || []).find(d => d.active !== false && d.buyItemId === item.id);
+    const dealBadge = itemDeal ? `<span class="product-badge" style="background:#7c2d12; color:#fff; top:8px; right:8px; font-weight:700;">🎁 Buy ${itemDeal.buyQty} Get ${itemDeal.freeQty} Free</span>` : '';
+    return `
             <div class="product-card">
               <div class="product-img-box">
                 <img src="${item.image}" alt="${item.name}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=700&q=80';" />
@@ -565,7 +566,8 @@ function renderOrderPage() {
                 </div>
               </div>
             </div>
-          `;}).join('')}
+          `;
+  }).join('')}
         </div>
       </section>
     </div>
@@ -1420,7 +1422,7 @@ async function submitFinalOrder() {
 
   if (custPhone) {
     customerPhone = custPhone;
-    try { localStorage.setItem('cc_cust_phone', custPhone); } catch (e) {}
+    try { localStorage.setItem('cc_cust_phone', custPhone); } catch (e) { }
     if (currentCustomerUser && currentCustomerUser.phone !== custPhone) {
       currentCustomerUser.phone = custPhone;
       fetch('/api/customer/session', {
@@ -1432,12 +1434,12 @@ async function submitFinalOrder() {
           email: currentCustomerUser.email || '',
           name: custName !== 'Guest' ? custName : (currentCustomerUser.name || '')
         })
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }
   if (custName && custName !== 'Guest') {
     customerName = custName;
-    try { localStorage.setItem('cc_cust_name', custName); } catch (e) {}
+    try { localStorage.setItem('cc_cust_name', custName); } catch (e) { }
   }
 
   const orderId = order.id;
@@ -1447,7 +1449,7 @@ async function submitFinalOrder() {
       recent.unshift(orderId);
       localStorage.setItem('cc_recent_orders', JSON.stringify(recent.slice(0, 10)));
     }
-  } catch (e) {}
+  } catch (e) { }
   const orderItems = order.items;
   const grandTotal = order.total;
 
@@ -1586,8 +1588,8 @@ function handleMenuSearch(q) {
   const container = document.getElementById('search-results-list');
   if (!container) return;
 
-  const matches = q.trim() === '' 
-    ? MENU_ITEMS.slice(0, 6) 
+  const matches = q.trim() === ''
+    ? MENU_ITEMS.slice(0, 6)
     : MENU_ITEMS.filter(i => i.name.toLowerCase().includes(q.toLowerCase()) || i.description.toLowerCase().includes(q.toLowerCase()));
 
   container.innerHTML = matches.map(item => `
@@ -1705,7 +1707,7 @@ function acceptCookies() {
   if (banner) banner.classList.add('hidden');
   try {
     localStorage.setItem('cc_cookies_accepted', 'true');
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function checkCookiesAccepted() {
@@ -1714,7 +1716,7 @@ function checkCookiesAccepted() {
       const banner = document.getElementById('cookie-banner');
       if (banner) banner.classList.add('hidden');
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // Mobile Menu
@@ -1758,7 +1760,7 @@ const ORDER_STATUS_COLOR = {
 function renderMyOrdersPage() {
   const isLoggedIn = !!currentCustomerUser;
   let recentList = [];
-  try { recentList = JSON.parse(localStorage.getItem('cc_recent_orders') || '[]'); } catch (e) {}
+  try { recentList = JSON.parse(localStorage.getItem('cc_recent_orders') || '[]'); } catch (e) { }
   const hasOrdersScope = isLoggedIn || !!customerPhone || recentList.length > 0;
   const userHeaderHtml = isLoggedIn ? `
     <div style="background:#fff; border-radius:14px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 2px 10px rgba(0,0,0,0.06); border:1px solid #f3f4f6;">
@@ -1823,7 +1825,7 @@ function setTrackerPhone() {
   const val = (input ? input.value : '').replace(/[^0-9]/g, '');
   if (val.length < 6) { showToast('Please enter a valid phone number.', 'error'); return; }
   customerPhone = val;
-  try { localStorage.setItem('cc_cust_phone', val); } catch (e) {}
+  try { localStorage.setItem('cc_cust_phone', val); } catch (e) { }
   document.getElementById('my-orders-phone-form').style.display = 'none';
   document.getElementById('my-orders-list').style.display = '';
   loadAndRenderMyOrders();
@@ -1832,7 +1834,7 @@ function setTrackerPhone() {
 
 function clearTrackerPhone() {
   customerPhone = '';
-  try { localStorage.removeItem('cc_cust_phone'); } catch (e) {}
+  try { localStorage.removeItem('cc_cust_phone'); } catch (e) { }
   if (myOrdersPoller) { clearInterval(myOrdersPoller); myOrdersPoller = null; }
   navigateTo('my-orders');
 }
@@ -1844,7 +1846,7 @@ async function loadAndRenderMyOrders() {
   if (!container) return;
 
   let recentList = [];
-  try { recentList = JSON.parse(localStorage.getItem('cc_recent_orders') || '[]'); } catch (e) {}
+  try { recentList = JSON.parse(localStorage.getItem('cc_recent_orders') || '[]'); } catch (e) { }
 
   const params = new URLSearchParams();
   if (customerPhone) params.set('phone', customerPhone);
@@ -1958,7 +1960,7 @@ async function loadAndRenderMyOrders() {
 
 function startMyOrdersPolling() {
   let recentList = [];
-  try { recentList = JSON.parse(localStorage.getItem('cc_recent_orders') || '[]'); } catch (e) {}
+  try { recentList = JSON.parse(localStorage.getItem('cc_recent_orders') || '[]'); } catch (e) { }
   if (!currentCustomerUser && !customerPhone && !recentList.length) return;
   loadAndRenderMyOrders(); // immediate load
   if (myOrdersPoller) clearInterval(myOrdersPoller);
@@ -1987,7 +1989,7 @@ async function checkCustomerSession() {
         currentCustomerUser = null;
       }
     }
-  } catch (e) {}
+  } catch (e) { }
   updateCustomerHeaderUI();
 }
 
@@ -2118,16 +2120,16 @@ function initGoogleAuth() {
   if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) return;
   try {
     const clientId = window.GOOGLE_CLIENT_ID || "377404973368-123d5bckj1lehthnjoilnt07udsvnn2m.apps.googleusercontent.com";
-  const hasValidClient = clientId && typeof clientId === 'string' && !clientId.includes('dummy') && clientId.endsWith('.apps.googleusercontent.com');
-  if (!hasValidClient) {
-    const gContainer = document.getElementById('google-signin-btn-container');
-    const manualBtn = document.getElementById('google-auth-btn');
-    const divider = document.querySelector('.auth-divider');
-    if (gContainer) gContainer.style.display = 'none';
-    if (manualBtn) manualBtn.style.display = 'none';
-    if (divider) divider.style.display = 'none';
-    return;
-  }
+    const hasValidClient = clientId && typeof clientId === 'string' && !clientId.includes('dummy') && clientId.endsWith('.apps.googleusercontent.com');
+    if (!hasValidClient) {
+      const gContainer = document.getElementById('google-signin-btn-container');
+      const manualBtn = document.getElementById('google-auth-btn');
+      const divider = document.querySelector('.auth-divider');
+      if (gContainer) gContainer.style.display = 'none';
+      if (manualBtn) manualBtn.style.display = 'none';
+      if (divider) divider.style.display = 'none';
+      return;
+    }
     google.accounts.id.initialize({
       client_id: clientId,
       callback: handleGoogleAuthCredential,
@@ -2173,7 +2175,7 @@ async function signInWithGoogle() {
     try {
       google.accounts.id.prompt();
       return;
-    } catch (_) {}
+    } catch (_) { }
   }
   setAuthStatusMsg('Google 1-Tap is blocked by browser settings or unavailable. Please enter your Gmail below to receive a 6-digit login code!', false);
   const emailInput = document.getElementById('auth-email-input');
@@ -2267,11 +2269,11 @@ async function handleLoginSuccess(user) {
   currentCustomerUser = user;
   if (user.phone) {
     customerPhone = user.phone;
-    try { localStorage.setItem('cc_cust_phone', customerPhone); } catch (e) {}
+    try { localStorage.setItem('cc_cust_phone', customerPhone); } catch (e) { }
   }
   if (user.name) {
     customerName = user.name;
-    try { localStorage.setItem('cc_cust_name', customerName); } catch (e) {}
+    try { localStorage.setItem('cc_cust_name', customerName); } catch (e) { }
   }
   closeCustomerAuthModal();
   updateCustomerHeaderUI();
@@ -2290,10 +2292,10 @@ async function handleLoginSuccess(user) {
 async function logoutCustomer() {
   try {
     await fetch('/api/customer/session', { method: 'DELETE' });
-  } catch (e) {}
+  } catch (e) { }
   currentCustomerUser = null;
   customerPhone = '';
-  try { localStorage.removeItem('cc_cust_phone'); } catch (e) {}
+  try { localStorage.removeItem('cc_cust_phone'); } catch (e) { }
   closeCustomerAuthModal();
   updateCustomerHeaderUI();
   showToast('You have been signed out.', 'success');
@@ -2314,14 +2316,14 @@ async function deleteCustomerAccount() {
       try {
         localStorage.removeItem('cc_cust_phone');
         localStorage.removeItem('cc_recent_orders');
-      } catch (e) {}
+      } catch (e) { }
       closeCustomerAuthModal();
       updateCustomerHeaderUI();
       showToast('Your account and order history have been deleted.', 'info');
       navigateTo('home');
       return;
     }
-  } catch (e) {}
+  } catch (e) { }
   showToast('Could not delete account. Please try again.', 'error');
 }
 
