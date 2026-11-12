@@ -139,6 +139,22 @@ const t = (name, fn) => { fn(); n++; console.log('  ok  ' + name); };
     assert(sitemap.includes('<image:loc>'), '<image:loc> required for indexed dish photos');
   });
 
+  t('Google Indexation: Individual static HTML pages exist for all sitemap URLs with self-referencing canonicals', () => {
+    const pages = [
+      { file: 'order/index.html', canonical: 'https://www.coffeeandcravings.shop/order', title: 'Artisan Menu & Online QR Ordering — Coffee & Cravings Patna' },
+      { file: 'story/index.html', canonical: 'https://www.coffeeandcravings.shop/story', title: 'Our Story & Passion for Coffee — Coffee & Cravings Patna' },
+      { file: 'gallery/index.html', canonical: 'https://www.coffeeandcravings.shop/gallery', title: 'Photo Gallery & Aesthetic Ambience — Coffee & Cravings Patna' },
+      { file: 'contact/index.html', canonical: 'https://www.coffeeandcravings.shop/contact', title: 'Contact, Location & Opening Hours — Coffee & Cravings Patna' }
+    ];
+
+    for (const p of pages) {
+      assert(fs.existsSync(p.file), 'Missing static HTML file: ' + p.file);
+      const content = fs.readFileSync(p.file, 'utf8');
+      assert(content.includes('<link rel="canonical" href="' + p.canonical + '" />'), 'Self-referencing canonical missing in ' + p.file);
+      assert(content.includes('<title>' + p.title + '</title>'), 'Unique title missing in ' + p.file);
+    }
+  });
+
   console.log(`\n${n} SEO, GEO & AEO audits passed successfully!`);
 })().catch(e => {
   console.error('SEO AUDIT FAILED:', e);
