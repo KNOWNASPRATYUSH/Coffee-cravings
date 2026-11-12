@@ -1,10 +1,11 @@
 'use strict';
 // Unified Customer Auth & Session API: /api/customer/session, /api/customer/otp, /api/customer/google
 const crypto = require('crypto');
+const lib = require('../_lib');
 const {
-  HttpError, route, pipe, cmd, clientIp, IS_PROD,
+  HttpError, route, pipe, cmd, clientIp,
   customerOf, issueCustomerToken, setCustomerCookie, clearCustomerCookie
-} = require('../_lib');
+} = lib;
 const { upsertCustomerUser, getCustomerUser, deleteCustomerData, cleanPhone, text } = require('../_shop');
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
@@ -15,25 +16,30 @@ const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 async function handleSession(req, res) {
   const url = new URL(req.url, 'http://x');
   if (req.method === 'GET') {
-    const cust = customerOf(req);
+    const cust = await customerOf(req);
     if (!cust) return res.json({ loggedIn: false, user: null });
     const profile = await getCustomerUser(cust.uid);
     return res.json({ loggedIn: true, user: profile || cust });
   }
 
   if (req.method === 'DELETE') {
-    const cust = customerOf(req);
+    const cust = await customerOf(req);
     const deleteData = url.searchParams.get('deleteData') === 'true';
-    if (deleteData && cust && cust.uid) {
-      await deleteCustomerData(cust.uid, cust.phone);
+    if (cust && cust.uid) {
+      // Invalidate all active sessions server-side
+      await cmd('SET', 'cust:revoked_before:' + cust.uid, String(Date.now() + 1000));
+      if (deleteData) {
+        await deleteCustomerData(cust.uid, cust.phone);
+      }
     }
     clearCustomerCookie(res);
     return res.json({ ok: true, deleted: deleteData });
   }
 
-  const cust = customerOf(req);
+  const cust = await customerOf(req);
   // Unauthenticated creation of arbitrary sessions is strictly forbidden in production!
-  if (!cust && process.env.NODE_ENV !== 'test') {
+  const isTestEnv = process.env.NODE_ENV === 'test' && !lib.IS_PROD;
+  if (!cust && !isTestEnv) {
     throw new HttpError(401, 'Sessions can only be created via verified Google Sign-In or Email OTP.');
   }
 
@@ -89,11 +95,11 @@ async function sendEmailOtp(toEmail, otp) {
         })
       });
       if (res.ok) {
-        if (!IS_PROD) console.log(`[Email] OTP successfully sent to ${toEmail} via Resend`);
+        if (!lib.IS_PROD) console.log(`[Email] OTP successfully sent to ${toEmail} via Resend`);
         return { sent: true };
       }
       const errText = await res.text();
-      console.warn(`[Email] Resend API status ${res.status}${!IS_PROD ? ': ' + errText : ''}`);
+      console.warn(`[Email] Resend API status ${res.status}${!lib.IS_PROD ? ': ' + errText : ''}`);
     } catch (e) {
       console.error('[Email] Resend request failed');
     }
@@ -151,7 +157,7 @@ async function sendEmailOtp(toEmail, otp) {
   }
 
   // Fallback: only log OTP in local dev/testing, NEVER in production
-  if (!IS_PROD) {
+  if (!lib.IS_PROD) {
     console.log(`[DEV ONLY] 6-digit OTP for ${toEmail}: ${otp}`);
   }
   return { sent: false };
@@ -193,7 +199,7 @@ async function handleOtp(req, res) {
     ]);
 
     const result = await sendEmailOtp(rawEmail, otp);
-    const isTest = process.env.NODE_ENV === 'test';
+    const isTest = process.env.NODE_ENV === 'test' && !lib.IS_PROD;
 
     // NEVER expose OTP to client in production or browser UI!
     return res.json({
@@ -282,8 +288,21 @@ async function handleGoogle(req, res) {
 
   let verifiedEmail, verifiedName, verifiedPic, sub;
 
+  const EXPECTED_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '377404973368-123d5bckj1lehthnjoilnt07udsvnn2m.apps.googleusercontent.com';
+  const ALLOWED_CLIENT_IDS = [EXPECTED_CLIENT_ID, '377404973368-123d5bckj1lehthnjoilnt07udsvnn2m.apps.googleusercontent.com'].filter(Boolean);
+  const ALLOWED_ISSUERS = ['accounts.google.com', 'https://accounts.google.com'];
+
   // In test mode only, allow simulated test tokens
-  if (process.env.NODE_ENV === 'test' && credential.startsWith('test_')) {
+  if (process.env.NODE_ENV === 'test' && !lib.IS_PROD && credential.startsWith('test_')) {
+    if (payload.aud && !ALLOWED_CLIENT_IDS.includes(payload.aud)) {
+      throw new HttpError(401, 'Google token audience mismatch');
+    }
+    if (payload.iss && !ALLOWED_ISSUERS.includes(payload.iss)) {
+      throw new HttpError(401, 'Google token issuer invalid');
+    }
+    if (payload.email_verified === false || payload.email_verified === 'false') {
+      throw new HttpError(401, 'Google email is not verified');
+    }
     sub = payload.sub || 'test_sub';
     verifiedEmail = payload.email;
     verifiedName = payload.name || payload.email.split('@')[0];
@@ -299,6 +318,15 @@ async function handleGoogle(req, res) {
       const gData = await googleRes.json();
       if (!gData || !gData.sub || !gData.email) {
         throw new Error('Incomplete Google identity claims');
+      }
+      if (!ALLOWED_CLIENT_IDS.includes(gData.aud)) {
+        throw new Error('Google token audience mismatch: ' + gData.aud);
+      }
+      if (!ALLOWED_ISSUERS.includes(gData.iss)) {
+        throw new Error('Google token issuer invalid: ' + gData.iss);
+      }
+      if (gData.email_verified !== 'true' && gData.email_verified !== true) {
+        throw new Error('Google email is not verified');
       }
       sub = gData.sub;
       verifiedEmail = gData.email;

@@ -2001,10 +2001,18 @@ function updateCustomerHeaderUI() {
       nameEl.textContent = currentCustomerUser.name ? currentCustomerUser.name.split(' ')[0] : 'Account';
     }
     if (avatarEl) {
+      avatarEl.textContent = '';
       if (currentCustomerUser.photoUrl) {
-        avatarEl.innerHTML = `<img src="${currentCustomerUser.photoUrl}" style="width:20px; height:20px; border-radius:50%; object-fit:cover;" />`;
+        const img = document.createElement('img');
+        img.src = currentCustomerUser.photoUrl;
+        img.alt = currentCustomerUser.name || 'User';
+        img.style.cssText = 'width:20px; height:20px; border-radius:50%; object-fit:cover; display:inline-block; vertical-align:middle;';
+        avatarEl.appendChild(img);
       } else {
-        avatarEl.innerHTML = `<span style="font-weight:700; font-size:13px; color:#92400e;">${(currentCustomerUser.name || 'U')[0].toUpperCase()}</span>`;
+        const span = document.createElement('span');
+        span.style.cssText = 'font-weight:700; font-size:13px; color:#92400e;';
+        span.textContent = (currentCustomerUser.name || 'U')[0].toUpperCase();
+        avatarEl.appendChild(span);
       }
     }
     if (mobileLink) {
@@ -2046,8 +2054,13 @@ function openCustomerAuthModal() {
     if (emailEl) emailEl.textContent = currentCustomerUser.email || '';
     if (phoneEl) phoneEl.textContent = currentCustomerUser.phone ? `+91 ${currentCustomerUser.phone}` : '';
     if (avatarEl) {
+      avatarEl.textContent = '';
       if (currentCustomerUser.photoUrl) {
-        avatarEl.innerHTML = `<img src="${currentCustomerUser.photoUrl}" style="width:100%; height:100%; object-fit:cover;" />`;
+        const img = document.createElement('img');
+        img.src = currentCustomerUser.photoUrl;
+        img.alt = currentCustomerUser.name || 'User';
+        img.style.cssText = 'width:100%; height:100%; object-fit:cover; border-radius:50%;';
+        avatarEl.appendChild(img);
       } else {
         avatarEl.textContent = (currentCustomerUser.name || 'U')[0].toUpperCase();
       }

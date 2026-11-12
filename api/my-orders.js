@@ -18,7 +18,7 @@ const STATUS_LABEL = {
 
 module.exports = route(['GET'], async (req, res) => {
   const url = new URL(req.url, 'http://x');
-  const loggedCust = customerOf(req);
+  const loggedCust = await customerOf(req);
   if (!loggedCust || !loggedCust.uid) {
     throw new HttpError(401, 'Please sign in to view your order history.');
   }

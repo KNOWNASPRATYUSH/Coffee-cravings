@@ -6,7 +6,7 @@ const parse = (raw) => { try { return raw ? JSON.parse(raw) : null; } catch (e) 
 
 module.exports = route(['GET'], async (req, res) => {
   const url = new URL(req.url, 'http://x');
-  const loggedCust = customerOf(req);
+  const loggedCust = await customerOf(req);
 
   // Require customer session for private profile lookup
   if (!loggedCust) {
@@ -20,17 +20,17 @@ module.exports = route(['GET'], async (req, res) => {
     throw new HttpError(400, 'Valid phone number is required.');
   }
 
-  // Cross-customer snooping prevention
-  if (loggedCust) {
-    const userPhone = cleanPhone(loggedCust.phone);
-    if (userPhone && userPhone !== phone) {
+  // Cross-customer snooping prevention (fail closed)
+  const userPhone = cleanPhone(loggedCust.phone);
+  if (userPhone) {
+    if (userPhone !== phone) {
       throw new HttpError(403, 'You can only view your own customer profile.');
     }
-    if (!userPhone) {
-      const phoneUid = await cmd('GET', 'cust:phone2uid:' + phone);
-      if (phoneUid && phoneUid !== loggedCust.uid) {
-        throw new HttpError(403, 'You can only view your own customer profile.');
-      }
+  } else {
+    // Authenticated user has no verified phone on their session; check if this phone is linked to their account
+    const phoneUid = await cmd('GET', 'cust:phone2uid:' + phone);
+    if (!phoneUid || phoneUid !== loggedCust.uid) {
+      throw new HttpError(403, 'You can only view your own customer profile.');
     }
   }
 

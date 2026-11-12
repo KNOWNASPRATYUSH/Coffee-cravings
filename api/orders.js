@@ -35,7 +35,7 @@ module.exports = route(['POST'], async (req, res) => {
   if (!Number.isInteger(table) || table < 0 || table > MAX_TABLE) throw new HttpError(400, 'Invalid table.');
   if (table > 0 && !tableSigOk(table, b.sig)) throw new HttpError(400, 'Please scan the QR code on your table to order for a table, or order as takeaway.');
 
-  const loggedCust = customerOf(req);
+  const loggedCust = await customerOf(req);
   if (!loggedCust || !loggedCust.uid) {
     throw new HttpError(401, 'Please sign in with Google or Email OTP before placing an order.');
   }

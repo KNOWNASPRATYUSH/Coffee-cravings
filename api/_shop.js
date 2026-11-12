@@ -398,6 +398,28 @@ async function getCustomerOrders(identifier, extraPhone = '') {
   return Object.values(rawMap).map(parse).filter(Boolean).sort((a, b) => new Date(b.at) - new Date(a.at));
 }
 
+function sanitizePhotoUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!/^https:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/[^\s"'<>`\\]*)?$/.test(trimmed)) return '';
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'https:') return '';
+    const host = parsed.hostname.toLowerCase();
+    const allowed = [
+      'googleusercontent.com',
+      'images.unsplash.com',
+      'res.cloudinary.com',
+      'coffeeandcravings.shop',
+      'www.coffeeandcravings.shop'
+    ];
+    if (!allowed.some(a => host === a || host.endsWith('.' + a))) return '';
+    return parsed.href;
+  } catch (e) {
+    return '';
+  }
+}
+
 async function upsertCustomerUser({ uid, email, phone, name, photoUrl }) {
   if (!uid) return null;
   const now = new Date().toISOString();
@@ -406,7 +428,7 @@ async function upsertCustomerUser({ uid, email, phone, name, photoUrl }) {
   const cleanP = cleanPhone(phone);
   const cleanE = String(email || '').trim().toLowerCase();
   const cleanN = text(name, 60) || existing.name || 'Coffee Lover';
-  const cleanPhoto = String(photoUrl || '').trim();
+  const cleanPhoto = sanitizePhotoUrl(photoUrl);
 
   const c = [
     ['HSET', ukey,
@@ -539,6 +561,6 @@ module.exports = {
   cleanCoupon, cleanCode, checkCoupon,
   cleanPhone, isPhone, lookupCustomer, recordCustomerOrder, recordCustomerPayment, listCustomers, getCustomerOrders,
   recordCouponUsed, getCustomerCoupons,
-  upsertCustomerUser, getCustomerUser, deleteCustomerData,
+  upsertCustomerUser, getCustomerUser, deleteCustomerData, sanitizePhotoUrl,
   bump, recordSale, voidSale
 };

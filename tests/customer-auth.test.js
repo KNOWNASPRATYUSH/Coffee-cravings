@@ -154,16 +154,24 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     assert(r.headers['Set-Cookie'], 'Must set cc_customer cookie');
   });
 
-  // 10. Logout clears session cookie
-  await t('DELETE /api/customer/session clears cc_customer cookie', async () => {
-    const r = await call(customer, { method: 'DELETE', url: '/api/customer/session', cookie: rahulCookie, ip: '9.9.9.10' });
+  // 10. Logout revokes session server-side and clears cookie
+  await t('DELETE /api/customer/session revokes token server-side and clears cookie', async () => {
+    const resUser = await call(customer, {
+      method: 'POST', url: '/api/customer/session', ip: '9.9.9.10',
+      body: { uid: 'user_to_logout_123', email: 'logout@test.com', name: 'Logout User' }
+    });
+    const tempLogoutCookie = (resUser.headers['Set-Cookie'] || '').split(';')[0];
+    const r = await call(customer, { method: 'DELETE', url: '/api/customer/session', cookie: tempLogoutCookie, ip: '9.9.9.10' });
     assert.equal(r.code, 200);
     assert.equal(r.body.ok, true);
     const setCookie = r.headers['Set-Cookie'] || '';
     assert(setCookie.includes('Max-Age=0') || setCookie.includes('cc_customer=;'));
+
+    // Server-side revocation verification: the old token is now rejected
+    const check = await call(customer, { method: 'GET', url: '/api/customer/session', cookie: tempLogoutCookie });
+    assert.equal(check.body.loggedIn, false, 'Revoked token must not be accepted');
   });
 
-  
   // ---------- Security Hardening Checks (Claude Audit Verification) ----------
 
   // 11. Unauthenticated order history rejected
@@ -174,7 +182,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
 
   // 12. Cross-account snooping rejected
   await t('SECURITY: cross-account GET /api/my-orders?phone=victim rejected with 403', async () => {
-    // Rahul's cookie querying someone else's phone
+    // Rahul's active cookie querying someone else's phone
     const r = await call(myOrders, { method: 'GET', url: '/api/my-orders?phone=9999999999', cookie: rahulCookie, ip: '9.9.9.12' });
     assert.equal(r.code, 403);
   });
@@ -252,18 +260,23 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
   });
 
   // 17. Customer privacy data deletion
-  await t('SECURITY: DELETE /api/customer/session?deleteData=true purges customer profile', async () => {
+  await t('SECURITY: DELETE /api/customer/session?deleteData=true purges customer profile and revokes session', async () => {
+    const userToDel = await call(customer, {
+      method: 'POST', url: '/api/customer/session', ip: '9.9.9.19',
+      body: { uid: 'user_to_delete_456', email: 'delete_me@test.com', name: 'Delete Me', phone: '9888877777' }
+    });
+    const delCookie = (userToDel.headers['Set-Cookie'] || '').split(';')[0];
+
     const delRes = await call(customer, {
       method: 'DELETE', url: '/api/customer/session?deleteData=true',
-      cookie: rahulCookie, ip: '9.9.9.19'
+      cookie: delCookie, ip: '9.9.9.19'
     });
     assert.equal(delRes.code, 200);
     assert.equal(delRes.body.deleted, true);
 
-    // Profile check after deletion
-    const profileRes = await call(customer, { method: 'GET', url: '/api/customer/session', cookie: rahulCookie });
-    assert.equal(profileRes.body.loggedIn, true);
-    assert.equal(profileRes.body.user.orders, undefined);
+    // Profile check after deletion: token is revoked
+    const profileRes = await call(customer, { method: 'GET', url: '/api/customer/session', cookie: delCookie });
+    assert.equal(profileRes.body.loggedIn, false);
   });
 
   // 18. IDOR Prevention: querying another customer's order ID via ?recent= does not leak it
@@ -277,6 +290,105 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
     assert(Array.isArray(r.body.orders));
     const leaked = r.body.orders.find(o => o.id === 'CC-1001');
     assert(!leaked, 'Must NOT leak Rahul order CC-1001 to Priya!');
+  });
+
+  // 19. Finding 1: Google token audience and issuer validation
+  await t('SECURITY (Finding 1): Google sign-in rejects token with mismatched audience or issuer', async () => {
+    // Simulated token with unknown aud
+    const wrongAudPayload = Buffer.from(JSON.stringify({
+      sub: 'google-sub-foreign',
+      aud: 'different-app.apps.googleusercontent.com',
+      iss: 'accounts.google.com',
+      email: 'foreign@gmail.com',
+      email_verified: true
+    })).toString('base64url');
+    const wrongAudJwt = `test_header.${wrongAudPayload}.sig`;
+
+    const r1 = await call(customer, {
+      method: 'POST', url: '/api/customer/google', ip: '9.9.9.21',
+      body: { credential: wrongAudJwt }
+    });
+    assert.equal(r1.code, 401);
+
+    // Simulated token with unverified email
+    const unverifiedPayload = Buffer.from(JSON.stringify({
+      sub: 'google-sub-unverified',
+      aud: '377404973368-123d5bckj1lehthnjoilnt07udsvnn2m.apps.googleusercontent.com',
+      iss: 'accounts.google.com',
+      email: 'unverified@gmail.com',
+      email_verified: false
+    })).toString('base64url');
+    const unverifiedJwt = `test_header.${unverifiedPayload}.sig`;
+
+    const r2 = await call(customer, {
+      method: 'POST', url: '/api/customer/google', ip: '9.9.9.22',
+      body: { credential: unverifiedJwt }
+    });
+    assert.equal(r2.code, 401);
+  });
+
+  // 20. Finding 2: Authenticated customer without verified phone cannot snoop unlinked phone records
+  await t('SECURITY (Finding 2): customer profile lookup fails closed for unlinked phone records (403)', async () => {
+    // Create an authenticated account with NO phone linked (e.g. Google user)
+    const noPhoneUser = await call(customer, {
+      method: 'POST', url: '/api/customer/session', ip: '9.9.9.23',
+      body: { uid: 'google_user_nophone', email: 'nophone@test.com', name: 'No Phone User' }
+    });
+    const noPhoneCookie = (noPhoneUser.headers['Set-Cookie'] || '').split(';')[0];
+
+    // Attempt to lookup an arbitrary phone number in the system
+    const r = await call(require('../api/customer'), {
+      method: 'GET', url: '/api/customer?phone=9876543210',
+      cookie: noPhoneCookie, ip: '9.9.9.24'
+    });
+    assert.equal(r.code, 403, 'Must return 403 Forbidden for unlinked phone lookup');
+  });
+
+  // 21. Finding 3: Test bypasses stay closed if VERCEL=true or NODE_ENV=production
+  await t('SECURITY (Finding 3): test bypasses remain strictly closed in production mode', async () => {
+    const origVercel = process.env.VERCEL;
+    try {
+      process.env.VERCEL = '1'; // simulate production deployment environment
+      // Try to create unauthenticated session using test bypass
+      const r = await call(customer, {
+        method: 'POST', url: '/api/customer/session', ip: '9.9.9.25',
+        body: { uid: 'bypass_attacker', email: 'attacker@evil.com' }
+      });
+      assert.equal(r.code, 401);
+    } finally {
+      if (origVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = origVercel;
+    }
+  });
+
+  // 22. Finding 5: Production fails fast when Redis is missing instead of silently using in-memory store
+  await t('SECURITY (Finding 5): missing Redis in production fails fast with 500 error', async () => {
+    const origVercel = process.env.VERCEL;
+    const { pipe } = require('../api/_lib');
+    try {
+      process.env.VERCEL = '1';
+      let threw = false;
+      try {
+        await pipe([['GET', 'test_key']]);
+      } catch (err) {
+        threw = true;
+        assert.equal(err.status, 500);
+        assert(err.message.includes('Database configuration missing'));
+      }
+      assert(threw, 'Must throw 500 error when Redis config is missing in production');
+    } finally {
+      if (origVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = origVercel;
+    }
+  });
+
+  // 23. Finding 6: photoUrl sanitization rejects quotes, HTML injection, and unauthorized protocols
+  await t('SECURITY (Finding 6): photoUrl sanitizes URLs and rejects malicious payloads', async () => {
+    const { sanitizePhotoUrl } = require('../api/_shop');
+    assert.equal(sanitizePhotoUrl('https://example.com/"onerror=alert(1)'), '');
+    assert.equal(sanitizePhotoUrl('javascript:alert(1)'), '');
+    assert.equal(sanitizePhotoUrl('https://evil-phishing.com/avatar.jpg'), '');
+    assert.equal(sanitizePhotoUrl('https://lh3.googleusercontent.com/a/ACg8ocI...'), 'https://lh3.googleusercontent.com/a/ACg8ocI...');
   });
 
   console.log(`\n${n} Customer Auth, Security & Lifetime History checks passed!`);
