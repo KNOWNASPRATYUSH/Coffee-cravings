@@ -361,6 +361,7 @@
   <link rel="icon" type="image/png" sizes="180x180" href="/favicon.png" />
   <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
 
   <!-- Google Fonts matching GoDaddy site exactly: Playfair Display, Lora, Cinzel, Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -443,12 +444,12 @@
     <!-- Centered GoDaddy Sub-Navigation Menu -->
     <nav class="sub-nav-menu" id="sub-nav">
       <ul class="nav-list">
-        <li><a href="#home" class="nav-item active" data-nav="home" onclick="navigateTo('home'); return false;">HOME</a></li>
-        <li><a href="#order" class="nav-item" data-nav="order" onclick="navigateTo('order'); return false;">ORDER</a></li>
-        <li><a href="#my-orders" class="nav-item" data-nav="my-orders" onclick="navigateTo('my-orders'); return false;">MY ORDERS</a></li>
-        <li><a href="#story" class="nav-item" data-nav="story" onclick="navigateTo('story'); return false;">OUR STORY</a></li>
-        <li><a href="#gallery" class="nav-item" data-nav="gallery" onclick="navigateTo('gallery'); return false;">GALLERY</a></li>
-        <li><a href="#contact" class="nav-item" data-nav="contact" onclick="navigateTo('contact'); return false;">CONTACT</a></li>
+        <li><a href="/" class="nav-item active" data-nav="home" onclick="navigateTo('home'); return false;">HOME</a></li>
+        <li><a href="/order" class="nav-item" data-nav="order" onclick="navigateTo('order'); return false;">ORDER</a></li>
+        <li><a href="/my-orders" class="nav-item" data-nav="my-orders" onclick="navigateTo('my-orders'); return false;">MY ORDERS</a></li>
+        <li><a href="/story" class="nav-item" data-nav="story" onclick="navigateTo('story'); return false;">OUR STORY</a></li>
+        <li><a href="/gallery" class="nav-item" data-nav="gallery" onclick="navigateTo('gallery'); return false;">GALLERY</a></li>
+        <li><a href="/contact" class="nav-item" data-nav="contact" onclick="navigateTo('contact'); return false;">CONTACT</a></li>
       </ul>
     </nav>
   </header>
@@ -460,13 +461,13 @@
       <button class="close-btn" onclick="toggleMobileMenu(false)">&times;</button>
     </div>
     <ul class="mobile-nav-links">
-      <li><a href="#home" onclick="navigateTo('home'); toggleMobileMenu(false); return false;">Home</a></li>
-      <li><a href="#order" onclick="navigateTo('order'); toggleMobileMenu(false); return false;">Order Online</a></li>
-      <li><a href="#my-orders" onclick="navigateTo('my-orders'); toggleMobileMenu(false); return false;">📦 My Orders</a></li>
+      <li><a href="/" onclick="navigateTo('home'); toggleMobileMenu(false); return false;">Home</a></li>
+      <li><a href="/order" onclick="navigateTo('order'); toggleMobileMenu(false); return false;">Order Online</a></li>
+      <li><a href="/my-orders" onclick="navigateTo('my-orders'); toggleMobileMenu(false); return false;">📦 My Orders</a></li>
       <li id="mobile-auth-item"><a href="javascript:void(0)" onclick="handleCustomerAccountClick(); toggleMobileMenu(false); return false;">👤 Sign In / Account</a></li>
-      <li><a href="#story" onclick="navigateTo('story'); toggleMobileMenu(false); return false;">Our Story</a></li>
-      <li><a href="#gallery" onclick="navigateTo('gallery'); toggleMobileMenu(false); return false;">Delightful Moments</a></li>
-      <li><a href="#contact" onclick="navigateTo('contact'); toggleMobileMenu(false); return false;">Contact &amp; Hours</a></li>
+      <li><a href="/story" onclick="navigateTo('story'); toggleMobileMenu(false); return false;">Our Story</a></li>
+      <li><a href="/gallery" onclick="navigateTo('gallery'); toggleMobileMenu(false); return false;">Delightful Moments</a></li>
+      <li><a href="/contact" onclick="navigateTo('contact'); toggleMobileMenu(false); return false;">Contact &amp; Hours</a></li>
     </ul>
     <div class="mobile-drawer-footer">
       <p class="phone-link"><a href="tel:6205677925">📞 620-567-7925</a></p>

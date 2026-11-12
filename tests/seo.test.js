@@ -155,6 +155,17 @@ const t = (name, fn) => { fn(); n++; console.log('  ok  ' + name); };
     }
   });
 
+  t('Crawlability & PWA: Clean internal anchor links and Web App Manifest configured', () => {
+    assert(html.includes('href="/order"'), 'Crawlable /order link required in navigation');
+    assert(html.includes('href="/story"'), 'Crawlable /story link required in navigation');
+    assert(html.includes('href="/gallery"'), 'Crawlable /gallery link required in navigation');
+    assert(html.includes('href="/contact"'), 'Crawlable /contact link required in navigation');
+    assert(html.includes('<link rel="manifest" href="/manifest.json" />'), 'Manifest link required in index.html');
+    assert(fs.existsSync('manifest.json'), 'manifest.json must exist');
+    const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+    assert(manifest.name && manifest.start_url && manifest.icons.length > 0, 'manifest.json fields required for mobile SEO');
+  });
+
   console.log(`\n${n} SEO, GEO & AEO audits passed successfully!`);
 })().catch(e => {
   console.error('SEO AUDIT FAILED:', e);

@@ -277,3 +277,4 @@ generatePage({
 });
 
 console.log('All static subpages successfully generated!');
+

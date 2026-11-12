@@ -1,0 +1,28 @@
+{
+  "name": "Coffee & Cravings — Best Cafe in Patna",
+  "short_name": "Coffee & Cravings",
+  "description": "Patna's premier artisan cafe and kitchen in Mithapur. Specialty coffee, creamy Italian pasta, gourmet burgers and Belgian waffles.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#fafafa",
+  "orientation": "portrait",
+  "lang": "en-IN",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "lifestyle", "shopping"]
+}

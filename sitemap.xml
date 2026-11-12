@@ -28,17 +28,37 @@
     <lastmod>2026-11-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://img1.wsimg.com/isteam/ip/97d5fc10-c530-4d76-9943-c97aa772d128/Coffee%20%26%20Cravings%20logo%203.jpg</image:loc>
+      <image:title>Coffee &amp; Cravings Artisan Story &amp; Heritage Patna</image:title>
+      <image:caption>The founding journey of Coffee &amp; Cravings artisan cafe in Mithapur Patna</image:caption>
+    </image:image>
   </url>
   <url>
     <loc>https://www.coffeeandcravings.shop/gallery</loc>
     <lastmod>2026-11-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&amp;fit=crop&amp;w=800&amp;q=80</image:loc>
+      <image:title>Coffee &amp; Cravings Cafe Ambiance &amp; Seating</image:title>
+      <image:caption>Aesthetic seating and couple friendly dining in Mithapur Patna</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&amp;fit=crop&amp;w=800&amp;q=80</image:loc>
+      <image:title>Belgian Chocolate Therapy Waffle</image:title>
+      <image:caption>Crisp Belgian waffle with chocolate drizzle at Coffee &amp; Cravings Patna</image:caption>
+    </image:image>
   </url>
   <url>
     <loc>https://www.coffeeandcravings.shop/contact</loc>
     <lastmod>2026-11-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&amp;fit=crop&amp;w=800&amp;q=80</image:loc>
+      <image:title>Coffee &amp; Cravings Mithapur Patna Location &amp; Directions</image:title>
+      <image:caption>Visit Coffee &amp; Cravings cafe near Mithapur bus stand Patna</image:caption>
+    </image:image>
   </url>
 </urlset>

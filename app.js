@@ -167,9 +167,16 @@ function playChimeSound() {
 // =============================================================================
 // 4. ROUTING & VIEW NAVIGATION
 // =============================================================================
-function navigateTo(viewName) {
+function navigateTo(viewName, pushState = true) {
   currentView = viewName;
-  window.location.hash = viewName;
+  if (pushState && window.history && window.history.pushState) {
+    const targetPath = viewName === 'home' ? '/' : '/' + viewName;
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ view: viewName }, '', targetPath);
+    }
+  } else if (!window.history || !window.history.pushState) {
+    window.location.hash = viewName;
+  }
 
   // Stop order polling when leaving that view
   if (viewName !== 'my-orders' && myOrdersPoller) {
@@ -249,11 +256,18 @@ function navigateTo(viewName) {
   updateTablePill();
 }
 
-// Listen to URL hash changes
+// Listen to browser Back/Forward (HTML5 history) and hash changes
+window.addEventListener('popstate', (e) => {
+  const p = window.location.pathname.replace(/^\/|\/$/g, '');
+  const target = ['order', 'story', 'gallery', 'contact', 'my-orders'].includes(p) ? p : (window.location.hash.replace('#', '') || 'home');
+  if (target !== currentView) {
+    navigateTo(target, false);
+  }
+});
 window.addEventListener('hashchange', () => {
   const hash = window.location.hash.replace('#', '') || 'home';
   if (hash !== currentView) {
-    navigateTo(hash);
+    navigateTo(hash, false);
   }
 });
 
