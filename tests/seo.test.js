@@ -166,6 +166,15 @@ const t = (name, fn) => { fn(); n++; console.log('  ok  ' + name); };
     assert(manifest.name && manifest.start_url && manifest.icons.length > 0, 'manifest.json fields required for mobile SEO');
   });
 
+  t('Custom 404 Page: Branded error page exists with noindex and recovery navigation links', () => {
+    assert(fs.existsSync('404.html'), '404.html custom error page must exist');
+    const page404 = fs.readFileSync('404.html', 'utf8');
+    assert(page404.includes('content="noindex, follow"'), '404 page must specify noindex, follow');
+    assert(page404.includes('href="/order"'), '404 page must provide a recovery link to /order');
+    assert(page404.includes('href="/"'), '404 page must provide a recovery link to home');
+    assert(page404.includes('Coffee &amp; Cravings'), '404 page must maintain brand identity');
+  });
+
   console.log(`\n${n} SEO, GEO & AEO audits passed successfully!`);
 })().catch(e => {
   console.error('SEO AUDIT FAILED:', e);
