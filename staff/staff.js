@@ -142,7 +142,7 @@ function renderLogin(msg) {
     e.preventDefault();
     const input = document.getElementById('pin-input'), btn = document.getElementById('login-btn'), out = document.getElementById('login-msg');
     const pin = input.value.trim();
-    if (!/^\d{4,12}$/.test(pin)) { out.textContent = 'PIN must be 4–12 digits.'; return; }
+    if (!/^\d{6,12}$/.test(pin)) { out.textContent = 'PIN must be 6–12 digits.'; return; }
     btn.disabled = true; out.textContent = '';
     try {
       const res = await fetch('/api/staff/session', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin }) });

@@ -561,7 +561,7 @@ async function renderSecuritySettings(view) {
               <label style="display:block; font-size:12px; font-weight:600; text-transform:uppercase; color:#555; margin-bottom:4px;">
                 New Owner Portal PIN (Optional)
               </label>
-              <input type="password" id="sec-new-owner-pin" placeholder="Leave blank to keep unchanged (4–12 digits)" maxlength="12" style="${INPUT}" />
+              <input type="password" id="sec-new-owner-pin" placeholder="Leave blank to keep unchanged (6–12 digits)" maxlength="12" style="${INPUT}" />
               <div style="font-size:11px; color:#777; margin-top:3px;">Used by you to access reports, menu, deals, and settings.</div>
             </div>
 
@@ -569,7 +569,7 @@ async function renderSecuritySettings(view) {
               <label style="display:block; font-size:12px; font-weight:600; text-transform:uppercase; color:#555; margin-bottom:4px;">
                 New Staff (Barista) Portal PIN (Optional)
               </label>
-              <input type="password" id="sec-new-barista-pin" placeholder="Leave blank to keep unchanged (4–12 digits)" maxlength="12" style="${INPUT}" />
+              <input type="password" id="sec-new-barista-pin" placeholder="Leave blank to keep unchanged (6–12 digits)" maxlength="12" style="${INPUT}" />
               <div style="font-size:11px; color:#777; margin-top:3px;">Given to baristas & counter staff to manage incoming kitchen orders.</div>
             </div>
 
