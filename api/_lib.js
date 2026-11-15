@@ -43,6 +43,7 @@ function memExec(c) {
     default: throw new Error('memExec: unsupported ' + op);
   }
 }
+// ---------- storage: requireStore ----------
 function requireStore() {
   const url = getRedisUrl(), tok = getRedisToken();
   if (!url || !tok) {
