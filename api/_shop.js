@@ -287,8 +287,10 @@ async function recordCustomerOrder(phone, name, orderId, totalP, isPaid, orderDe
       c.push(['HINCRBY', key, 'paidOrders', 1], ['HINCRBY', key, 'totalSpendP', totalP]);
     }
     if (customerUid) {
+      const userProf = await getCustomerUser(customerUid);
+      const isVerifiedPhone = userProf && cleanPhone(userProf.phone) === p;
       const existingOwner = await cmd('GET', 'cust:phone2uid:' + p);
-      if (!existingOwner) {
+      if (!existingOwner && isVerifiedPhone) {
         c.push(
           ['SET', 'cust:phone2uid:' + p, customerUid],
           ['SET', 'cust:uid2phone:' + customerUid, p]
@@ -561,8 +563,41 @@ async function recordSale(o) {
   }
 }
 
+// Restores used coupon quotas when an order is cancelled
+async function releaseCoupon(o) {
+  if (!o || !o.couponCode) return;
+  const code = o.couponCode;
+  const p = cleanPhone(o.phone);
+  const uid = o.customerUid;
+  const c = [];
+
+  const totalUses = parseInt(await cmd('GET', 'coupon:uses:' + code), 10) || 0;
+  if (totalUses > 0) {
+    c.push(['DECR', 'coupon:uses:' + code]);
+  }
+
+  if (p) {
+    const userUses = parseInt(await cmd('GET', 'coupon:useruses:' + code + ':' + p), 10) || 0;
+    if (userUses > 0) c.push(['DECR', 'coupon:useruses:' + code + ':' + p]);
+  }
+  if (uid) {
+    const uidUses = parseInt(await cmd('GET', 'coupon:useruses:' + code + ':uid:' + uid), 10) || 0;
+    if (uidUses > 0) c.push(['DECR', 'coupon:useruses:' + code + ':uid:' + uid]);
+  }
+
+  if (o.isNewCustCoupon || code === 'NEWBIE20' || code === 'WELCOME') {
+    if (p) c.push(['DEL', 'coupon:welcome:used:' + p]);
+    if (uid) c.push(['DEL', 'coupon:welcome:used:uid:' + uid]);
+  }
+
+  if (c.length) {
+    await pipe(c);
+  }
+}
+
 // Reverses a previously recorded sale when an order is cancelled
 async function voidSale(o) {
+  await releaseCoupon(o);
   const sold = await cmd('GET', 'sold:' + o.id);
   if (!sold) return;
   await cmd('DEL', 'sold:' + o.id);
@@ -592,5 +627,5 @@ module.exports = {
   cleanPhone, isPhone, lookupCustomer, recordCustomerOrder, recordCustomerPayment, listCustomers, getCustomerOrders,
   recordCouponUsed, getCustomerCoupons,
   upsertCustomerUser, getCustomerUser, deleteCustomerData, sanitizePhotoUrl,
-  bump, recordSale, voidSale
+  bump, recordSale, voidSale, releaseCoupon
 };

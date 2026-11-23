@@ -22,6 +22,7 @@ function memExec(c) {
     case 'SET': { if (a.includes('NX') && mem.kv.has(k)) return null; mem.kv.set(k, String(a[0])); return 'OK'; }
     case 'DEL': mem.kv.delete(k); mem.h.delete(k); mem.z.delete(k); return 1;
     case 'INCR': { const n = (parseInt(mem.kv.get(k), 10) || 0) + 1; mem.kv.set(k, String(n)); return n; }
+    case 'DECR': { const n = (parseInt(mem.kv.get(k), 10) || 0) - 1; mem.kv.set(k, String(n)); return n; }
     case 'EXPIRE': return 1;
     case 'EXISTS': return (mem.kv.has(k) || mem.h.has(k) || mem.z.has(k)) ? 1 : 0;
     case 'HSET': { const o = mem.h.get(k) || {}; for (let i = 0; i < a.length; i += 2) o[a[i]] = String(a[i + 1]); mem.h.set(k, o); return 1; }
@@ -226,7 +227,12 @@ const tableSig = (n) => crypto.createHmac('sha256', secret()).update('table:' + 
 const tableSigOk = (n, sig) => typeof sig === 'string' && sig.length === 22 && safeEq(sig, tableSig(n));
 
 // ---------- request plumbing ----------
-const clientIp = (req) => String(req.headers['x-real-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();
+const clientIp = (req) => String(
+  req.headers['x-vercel-forwarded-for'] ||
+  req.headers['x-real-ip'] ||
+  (req.headers['x-forwarded-for'] || '').split(',')[0] ||
+  'unknown'
+).trim();
 function isSameSiteOrigin(origin, host) {
   if (!origin || !host) return true;
   try {

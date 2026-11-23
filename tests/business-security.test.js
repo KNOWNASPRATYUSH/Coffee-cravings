@@ -274,6 +274,90 @@ async function runBusinessSecurityAudit() {
     console.log('  ✅ Operational Security: Unauthorized menu alterations blocked (403)');
   }
 
+  // 9. NEW GUARDRAIL TESTS
+  // 9.1 Client IP prioritizes trusted edge network headers
+  {
+    const spoofedReq = {
+      headers: {
+        'x-vercel-forwarded-for': '203.0.113.195',
+        'x-real-ip': '198.51.100.22',
+        'x-forwarded-for': '10.0.0.1, 10.0.0.2'
+      }
+    };
+    const ip = lib.clientIp(spoofedReq);
+    assert.strictEqual(ip, '203.0.113.195', 'Must prioritize trusted edge header over spoofable client headers');
+    console.log('  ✅ Guardrail: Trusted edge IP extraction prevents spoofing');
+  }
+
+  // 9.2 Stale payments (>30 minutes old) are rejected from active kitchen queue
+  {
+    const pay = require('../api/_pay');
+    const staleOrderId = 'CC-9999';
+    const staleOrderData = {
+      id: staleOrderId,
+      createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(), // 45 minutes old
+      amount: 15000,
+      total: 150
+    };
+    const ok = 'order:' + staleOrderId;
+    await lib.pipe([
+      ['HSET', ok, 'data', JSON.stringify(staleOrderData), 'status', 'awaiting_payment', 'amount', 15000],
+      ['SET', 'rzp:order_STALE_123', staleOrderId]
+    ]);
+
+    const resOrder = await pay.markPaid('order_STALE_123', 'pay_STALE_456', 15000);
+    assert.strictEqual(resOrder, staleOrderId);
+    const updated = lib.toObj(await lib.cmd('HGETALL', ok));
+    assert.strictEqual(updated.status, 'expired_paid', 'Stale order status must become expired_paid, not new');
+    assert.strictEqual(updated.paymentStatus, 'PAID_STALE');
+    console.log('  ✅ Guardrail: Stale payment reconciliation blocked from alerting kitchen');
+  }
+
+  // 9.3 Cross-account phone hijacking prevention during checkout
+  {
+    // Bind victim phone to victim user
+    await lib.cmd('SET', 'cust:phone2uid:9888877777', 'victim_uid_123');
+
+    // Attacker tries to place order with victim phone
+    const attackerToken = lib.issueCustomerToken({ uid: 'attacker_uid_456', email: 'attacker@test.com' });
+    const orderBody = {
+      key: 'idem-test-phone-hijack',
+      items: [{ id: 'cappuccino', qty: 1 }],
+      phone: '9888877777' // Victim's phone!
+    };
+    const req = mockReq('POST', '/api/orders', orderBody, { cookie: `cc_customer=${attackerToken}` });
+    const res = mockRes();
+    await ordersHandler(req, res);
+    assert.strictEqual(res.statusCode, 403, 'Placing order with another customer registered phone must return 403');
+    console.log('  ✅ Guardrail: Impersonating another customer phone at checkout blocked (403)');
+  }
+
+  // 9.4 Coupon quota refunded when staff cancels order
+  {
+    // Create a coupon with maxUses = 1
+    const coupon = { code: 'REFUNDTEST', type: 'flat', value: 50, minOrder: 100, active: true, maxUses: 1 };
+    await lib.cmd('HSET', 'coupons', 'REFUNDTEST', JSON.stringify(coupon));
+    await lib.cmd('SET', 'coupon:uses:REFUNDTEST', '1'); // Currently used up
+
+    const fakeOrder = {
+      id: 'CC-8888',
+      couponCode: 'REFUNDTEST',
+      phone: '9555544444',
+      customerUid: 'cust_refund_user',
+      isNewCustCoupon: true
+    };
+    await lib.cmd('SET', 'coupon:welcome:used:9555544444', '1');
+
+    // Trigger voidSale
+    await shop.voidSale(fakeOrder);
+
+    const usesAfter = parseInt(await lib.cmd('GET', 'coupon:uses:REFUNDTEST'), 10) || 0;
+    assert.strictEqual(usesAfter, 0, 'Coupon usage count must be decremented back to 0 on cancellation');
+    const welcomeUsed = await lib.cmd('GET', 'coupon:welcome:used:9555544444');
+    assert.strictEqual(welcomeUsed, null, 'Welcome coupon lock must be removed on cancellation');
+    console.log('  ✅ Guardrail: Order cancellation restores customer coupon quotas');
+  }
+
   console.log('\n--- ALL BUSINESS SECURITY VERIFICATIONS PASSED ---');
 }
 

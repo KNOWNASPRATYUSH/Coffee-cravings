@@ -38,9 +38,19 @@ async function markPaid(gatewayOrderId, paymentId, amountPaise) {
   const f = toObj(await cmd('HGETALL', key));
   if (!f.data) return null;
   if (amountPaise != null && Number(f.amount) !== Number(amountPaise)) { console.error('payment amount mismatch for', ours); return null; }
+
+  const orderData = JSON.parse(f.data);
+  const orderAgeMs = Date.now() - new Date(orderData.createdAt).getTime();
+  const MAX_PAYMENT_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
+  if (orderAgeMs > MAX_PAYMENT_WINDOW_MS && f.status === 'awaiting_payment') {
+    console.warn(`[PAYMENT] Stale payment received for ${ours} (${Math.round(orderAgeMs / 60000)}m old). Marking expired.`);
+    await cmd('HSET', key, 'status', 'expired_paid', 'paymentStatus', 'PAID_STALE', 'paymentRef', String(paymentId || ''));
+    return ours;
+  }
+
   if (f.status === 'awaiting_payment') {
     await cmd('HSET', key, 'status', 'new', 'paymentStatus', 'PAID', 'paymentRef', String(paymentId || ''));
-    await recordSale(JSON.parse(f.data));
+    await recordSale(orderData);
     await bump();
   }
   return ours;

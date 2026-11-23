@@ -42,6 +42,13 @@ module.exports = route(['POST'], async (req, res) => {
 
   const phone = text(b.phone !== undefined ? b.phone : loggedCust.phone, 15);
   if (phone && !/^[0-9+\- ]{6,15}$/.test(phone)) throw new HttpError(400, 'Please enter a valid phone number.');
+  const cleanP = cleanPhone(phone);
+  if (cleanP && cleanP.length >= 6) {
+    const boundUid = await cmd('GET', 'cust:phone2uid:' + cleanP);
+    if (boundUid && boundUid !== loggedCust.uid) {
+      throw new HttpError(403, 'This phone number belongs to another verified account. Please use your own registered phone number.');
+    }
+  }
 
   // idempotency: the same checkout can never create two orders (double tap / retry)
   const idem = 'idem:' + key;
@@ -78,7 +85,7 @@ module.exports = route(['POST'], async (req, res) => {
     const order = {
       id: 'CC-' + (1000 + seq), table, customerName: custName, phone, customerUid: loggedCust.uid,
       paymentMethod: b.paymentMethod === 'digital' ? 'digital' : 'counter', specialNotes: text(b.specialNotes, 300),
-      items, subtotal: subtotalP / 100, discount: discountP / 100, couponCode, tax: taxP / 100, total: totalP / 100,
+      items, subtotal: subtotalP / 100, discount: discountP / 100, couponCode, isNewCustCoupon, tax: taxP / 100, total: totalP / 100,
       dealsApplied: freebies.map(f => f.dealId), createdAt: new Date().toISOString()
     };
     const online = order.paymentMethod === 'digital' && pay.enabled();
