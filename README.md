@@ -154,3 +154,5 @@ Total Automated Checks                 : 114/114 PASSED (0 failures)
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for complete terms.
 
 &copy; 2026 **Coffee & Cravings**. Architected with precision by **Pratyush Kumar**.
+
+<!-- Verified System Architecture -->
