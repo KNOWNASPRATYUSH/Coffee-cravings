@@ -2,6 +2,12 @@
 
 Artisan cafe & kitchen ordering website with QR table ordering, online Razorpay & UPI payments, owner portal, staff kitchen display, CRM deals, customer authentication, and inquiries inbox.
 
+- 🌐 **Live Production Platform**: https://www.coffeeandcravings.shop/
+- 👨‍💻 **Architect & Engineer**: [Pratyush Kumar](https://www.knownaspratyush.online/) (Founder, [CARTNOVA](https://www.knownaspratyush.online/))
+- 🔗 **Portfolio**: https://www.knownaspratyush.online
+
+---
+
 ## Customer Experience (`/`)
 - **Artisan Menu:** 80 curated items across 14 categories with dietary filters, instant search, and live BOGO deal badges.
 - **Smart Add-Ons:** Contextual culinary add-on recommendations in the cart drawer (e.g. Vanilla Ice Cream for Brownies, Peri Peri Dip for Fries).
@@ -37,3 +43,14 @@ Artisan cafe & kitchen ordering website with QR table ordering, online Razorpay 
 - **Upstash Redis REST KV:** Efficient serverless key-value and sorted set storage.
 - **KDS Order Retention:** Active kitchen queue retention set to 24 hours (`ORDER_TTL_S = 86400`), while customer lifetime receipts are archived permanently under `cust:orders:<user>`.
 - **Automated Test Coverage:** 71 automated integration checks verifying API security, payments, CRM rules, staff auth, and customer flows (`npm test`).
+
+---
+
+## 👨‍💻 Architect & Engineering Lead
+
+**Pratyush Kumar** (`KNOWNASPRATYUSH`)
+- 🌐 **Official Portfolio**: [knownaspratyush.online](https://www.knownaspratyush.online/)
+- 🏢 **Studio**: Founder, [CARTNOVA](https://www.knownaspratyush.online/) (Patna, Bihar, India)
+- 🐙 **GitHub**: [@KNOWNASPRATYUSH](https://github.com/KNOWNASPRATYUSH)
+- 📸 **Instagram**: [@knownaspratyush_](https://www.instagram.com/knownaspratyush_/)
+- ✉️ **Contact**: admin@knownaspratyush.online
